@@ -157,8 +157,18 @@ PPGDenoiser(model_dir="models/ppg_denoise_v1/no_imu", preset="no_imu")
 
 ## 5. 数据准备
 
-本仓库**不含原始数据**（约 19 GB，且各有许可）。请按 **[datasets/README.md](datasets/README.md)** 的
-官方链接自行下载并放到 `datasets/<名称>/`；公开数据集可用：
+本仓库 `main` **不含原始数据**（约 19 GB，且各有许可）。
+
+**可选**：`datasets` 分支（与 `main` 无共同历史）已放入**许可允许再分发**的开放子集
+（TROIKA + WRIST + BIDMC ≈ 244 MB），一键取用：
+
+```bash
+git fetch origin datasets
+git checkout origin/datasets -- datasets/
+```
+
+其余数据集请按 **[datasets/README.md](datasets/README.md)** 的官方链接自行下载并放到 `datasets/<名称>/`；
+公开数据集也可用脚本：
 
 ```bash
 python scripts/tools/download_datasets.py --list

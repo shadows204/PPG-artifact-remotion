@@ -15,6 +15,24 @@
 | **WRIST** | 腕部 + 同步 ACC/Gyro（参考通道最优策略在此验证） | 19 记录，256 Hz WFDB，PPG+ACC(3)+Gyro(3) | <https://physionet.org/content/wrist/> | `datasets/WRIST/` |
 | **HUAWEI MIDHIGH** | 华为中高强度波形（**无真值**，仅用于伪影强度/漂移诊断） | 91 段 | 厂商/赛方提供 | `datasets/HUAWEI_MIDHIGH/` |
 
+
+## 可选：从 `datasets` 分支直接获取开放许可子集
+
+本仓库另有一个 **`datasets` 分支**（与 `main` 无共同历史），存放**许可允许再分发**且单文件 < 5 MB 的公开数据集：
+**TROIKA（13 MB）+ WRIST（50 MB）+ BIDMC（181 MB）**，共约 244 MB。取用方式（在仓库根目录）：
+
+```bash
+# 只取数据文件，不切换分支（推荐）
+git fetch origin datasets
+git checkout origin/datasets -- datasets/
+
+# 或把数据放到独立目录
+git worktree add ../ppg-datasets origin/datasets
+```
+
+其余数据集（CIME / CapnoBase / WESAD / PPG-DaLiA / HUAWEI）因**许可限制或单文件超过 GitHub 100 MB 上限**
+（WESAD 单个 pkl ≈ 1 GB、DaLiA 单个 .mat 102 MB）无法入库，请按上表官方链接下载。
+
 ## 一键下载（自动的部分）
 
 `scripts/tools/download_datasets.py` 覆盖了**公开可直接下载**的数据集（TROIKA / BIDMC / CapnoBase / WRIST / WESAD / PPG-DaLiA）：
