@@ -152,11 +152,14 @@ OMP_NUM_THREADS=2 bash webapp/start.sh    # → http://127.0.0.1:8000
 
 ### 4.2 免安装 exe（双击即用，无需 Python / 演示数据内置 / 可导入外部数据）
 
+- **产物（两个单文件，无控制台窗口，双击即用）**：
+  - `PPG-Workbench-v1.exe`：原始版（合成正弦演示、显示 PRD，用于对照）；
+  - `PPG-Workbench-v2.exe`：增强版（真实形态演示 + 演示态「链路自检」+ 静息旁路演示）。
 - **构建**（二选一）：
-  - **推荐**：仓库 → Actions → `build-windows-exe` → Run workflow → 下载 Artifacts（在 Windows runner 上产出真正的 .exe）；
-  - Windows 本机：双击 `webapp\packaging\build_windows.bat`（本机只需装 Python 用于构建）。
-- **使用**：解压 zip → 双击 `PPG-Workbench.exe` → 自动打开浏览器（内置演示数据可直接演示；外部数据用网页上传）。
-- **内含**：lite + no_imu 模型、合成演示数据、网页与说明书；`BUNDLE_FULL=1` 可再带 full 预设。
+  - **推荐**：仓库 → Actions → `build-windows-exe` → Run workflow（自动并行构建 v1/v2）→ 下载 Artifacts；
+  - Windows 本机：双击 `webapp\packaging\build_windows.bat`（本机只需装 Python 用于构建，成品不需要）。
+- **使用**：双击 exe → 自动打开浏览器（演示数据可直接演示；外部数据用网页上传）；**退出**点右上角 **⏻**。
+- **内含**：Python 运行时 + CPU 版 torch + lite/no_imu 模型 + 合成演示数据 + 网页与说明书；单文件可直接拷贝。
 - 体积/启动/常见问题见 [webapp/packaging/README.md](webapp/packaging/README.md)。
 
 > **v2.0 更新（2026-10-21）**：内置演示数据改为**真实 PPG 形态 + 物理幅度 IMU**（v1 是纯正弦，属网络分布外）；

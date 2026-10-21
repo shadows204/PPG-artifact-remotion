@@ -32,6 +32,19 @@ from flask import Flask, jsonify, request, send_file, send_from_directory
 # ---- 冻结（PyInstaller 打包）支持 ----------------------------------------
 # 打包后：资源在 sys._MEIPASS（onefile）或 exe 同级目录（onedir）；源码运行时在仓库根。
 FROZEN = bool(getattr(sys, "frozen", False))
+# 无控制台（windowed）模式下 stdout/stderr 为 None：先挂到日志文件，避免 print/logging 崩溃
+_LOG_FH = None
+if FROZEN and (sys.stdout is None or sys.stderr is None):
+    try:
+        _log_path = Path(sys.executable).resolve().parent / "workbench.log"
+        _LOG_FH = open(_log_path, "a", encoding="utf-8", buffering=1)
+    except Exception:
+        import io
+        _LOG_FH = io.StringIO()
+    if sys.stdout is None:
+        sys.stdout = _LOG_FH
+    if sys.stderr is None:
+        sys.stderr = _LOG_FH
 if FROZEN:
     RES = Path(getattr(sys, "_MEIPASS", Path(sys.executable).resolve().parent))
     BASE = RES / "webapp"
@@ -668,6 +681,16 @@ def _png_bytes(rec: dict) -> bytes:
 @APP.get("/")
 def index():
     return send_from_directory(APP.static_folder, "index.html")
+
+
+@APP.post("/api/shutdown")
+def shutdown():
+    """退出应用（无控制台打包版没有 Ctrl+C，由网页「退出应用」按钮调用）。"""
+    def _later():
+        time.sleep(0.4)
+        os._exit(0)
+    threading.Thread(target=_later, daemon=True).start()
+    return jsonify({"ok": True, "message": "服务正在退出，可以关闭本页面"})
 
 
 @APP.get("/api/health")

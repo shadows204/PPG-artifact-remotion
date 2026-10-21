@@ -306,6 +306,7 @@ hr.sep{border:0;border-top:1px solid var(--border);margin:18px 0}
       <span class="chip" id="healthChip"><span class="dot"></span><span id="healthText">连接中…</span></span>
       <span class="chip" id="modelChip"><span class="dot"></span><span id="modelText">模型未加载</span></span>
       <button class="icon-btn" id="themeBtn" title="切换明暗主题">◐</button>
+      <button class="icon-btn" id="quitBtn" title="退出应用">⏻</button>
     </div>
   </header>
 
@@ -945,9 +946,23 @@ document.addEventListener("DOMContentLoaded", async () => {
   renderVisibility();
 });
 
+
+/* 退出应用（无控制台打包版没有 Ctrl+C；开发模式会关闭本地服务） */
+function bindQuit() {
+  const btn = $("#quitBtn");
+  if (!btn) return;
+  btn.addEventListener("click", async () => {
+    if (!confirm("退出 PPG 工作台？\n\n退出后网页将无法继续使用（重新打开 exe 即可再次启动）。")) return;
+    try { await api("/api/shutdown", { method: "POST" }); } catch (e) { /* 进程退出时请求可能中断 */ }
+    document.body.innerHTML = '<div style="display:flex;height:100vh;align-items:center;justify-content:center;'
+      + 'font-family:system-ui;color:#8fa0bd;background:#0b1220">服务已退出，可以关闭本页面。</div>';
+  });
+}
+
 function initTheme() {
   const saved = localStorage.getItem("ppg_theme");
   if (saved) document.documentElement.dataset.theme = saved;
+  bindQuit();
   $("#themeBtn").addEventListener("click", () => {
     const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
     document.documentElement.dataset.theme = next;
