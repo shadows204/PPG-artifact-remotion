@@ -9,6 +9,7 @@ torch>=2.0
 wfdb>=4.1          # 读取 WRIST / BIDMC 等 WFDB 格式
 matplotlib>=3.6    # 出图
 PyEMD>=1.0         # 仅经典 baseline 里的 EMD/EEMD 需要（缺失时该两行自动跳过）
+flask>=3.0         # Web 工作台 webapp/server.py 需要
 ```
 
 安装：
@@ -20,5 +21,5 @@ pip install -r requirements.txt
 
 实测版本：numpy 2.5.4 / scipy 1.18.1 / torch 2.14.1 / wfdb 4.3.1 / matplotlib 3.11.2 / PyEMD 1.10.0。
 
-> 仅推理（软件接口）时只需要 `numpy scipy torch matplotlib`；
+> 仅推理（软件接口）时只需要 `numpy scipy torch matplotlib`；Web 工作台另需 `flask`（已列在上）；
 > `wfdb` 用于直接读原始数据集，`PyEMD` 仅用于经典 baseline 的 EMD 两行。

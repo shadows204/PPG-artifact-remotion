@@ -48,7 +48,8 @@ def _pipeline():
     global _PIPELINE
     if _PIPELINE is None:
         import importlib.util
-        path = os.path.join(SCRIPTS, "pipeline", "pipeline.py")
+        # 冻结（PyInstaller）模式下 server 通过环境变量给出 pipeline.py 的实际位置
+        path = os.environ.get("PPG_PIPELINE_PY") or os.path.join(SCRIPTS, "pipeline", "pipeline.py")
         spec = importlib.util.spec_from_file_location("ppg_pipeline", path)
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)

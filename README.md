@@ -138,7 +138,28 @@ python scripts/tools/run_denoise.py --demo --out outputs/out --eval-test 60
 
 ---
 
-## 4. 模型与预设
+## 4. Web 工作台（网页版 / 免安装 exe）
+
+`webapp/` 把算法包装成本地网页应用：选演示数据或上传文件 → **三波形交互**（缩放/平移/悬停读数）+ 心率曲线 + 质量指标 + 一键导出（NPZ/JSON/CSV/PNG）。
+后端 `webapp/server.py`（Flask），前端 `webapp/static/index.html`（单文件、无 CDN）；详细说明见 [webapp/使用说明书.md](webapp/使用说明书.md)。
+
+### 4.1 源码方式启动
+
+```bash
+source .venv/bin/activate                 # 或直接用项目 venv 的 python
+OMP_NUM_THREADS=2 bash webapp/start.sh    # → http://127.0.0.1:8000
+```
+
+### 4.2 免安装 exe（双击即用，无需 Python / 演示数据内置 / 可导入外部数据）
+
+- **构建**（二选一）：
+  - **推荐**：仓库 → Actions → `build-windows-exe` → Run workflow → 下载 Artifacts（在 Windows runner 上产出真正的 .exe）；
+  - Windows 本机：双击 `webapp\packaging\build_windows.bat`（本机只需装 Python 用于构建）。
+- **使用**：解压 zip → 双击 `PPG-Workbench.exe` → 自动打开浏览器（内置演示数据可直接演示；外部数据用网页上传）。
+- **内含**：lite + no_imu 模型、合成演示数据、网页与说明书；`BUNDLE_FULL=1` 可再带 full 预设。
+- 体积/启动/常见问题见 [webapp/packaging/README.md](webapp/packaging/README.md)。
+
+## 5. 模型与预设
 
 `models/ppg_denoise_v1/manifest.json` 记录版本、每个权重的 sha256 与期望指标。
 
@@ -155,7 +176,7 @@ PPGDenoiser(model_dir="models/ppg_denoise_v1/no_imu", preset="no_imu")
 
 ---
 
-## 5. 数据准备
+## 6. 数据准备
 
 本仓库 `main` **不含原始数据**（约 19 GB，且各有许可）。
 
@@ -179,7 +200,7 @@ python scripts/tools/download_datasets.py --only troika wrist
 
 ---
 
-## 6. 复现实验
+## 7. 复现实验
 
 ```bash
 # 0) 回归门禁：一条命令核对全部关键数字（数据齐备时）
@@ -209,7 +230,7 @@ python scripts/tools/draw_framework.py             # 框架图
 
 ---
 
-## 7. 脚本一览（仓库内保留的必要脚本）
+## 8. 脚本一览（仓库内保留的必要脚本）
 
 | 脚本 | 作用 |
 |---|---|
@@ -235,7 +256,7 @@ python scripts/tools/draw_framework.py             # 框架图
 
 ---
 
-## 8. 结果摘要
+## 9. 结果摘要
 
 | 任务 | 指标 | 原始 | 最强 baseline | 本方案 |
 |---|---|---|---|---|
@@ -250,7 +271,7 @@ python scripts/tools/draw_framework.py             # 框架图
 
 ---
 
-## 9. 许可与致谢
+## 10. 许可与致谢
 
 - 代码：供本赛题评审与学术复现使用。
 - 数据集：版权归各数据集/赛方所有，本仓库**不重新分发**，请遵守各自许可（见 `datasets/README.md`）。

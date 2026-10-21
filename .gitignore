@@ -14,3 +14,10 @@ datasets/*
 .DS_Store
 *.egg-info/
 .ipynb_checkpoints/
+
+# 打包产物 / 构建环境
+dist/
+build/
+.venv-build/
+*.manifest
+workbench.log
