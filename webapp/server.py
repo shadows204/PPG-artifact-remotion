@@ -186,32 +186,91 @@ def _hr_times(n_hr: int) -> np.ndarray:
 # ---------------------------------------------------------------------------
 # 数据源
 # ---------------------------------------------------------------------------
-def synth_demo(scenario: str = "moderate"):
-    """合成演示信号：干净脉搏 + 运动伪影 + 噪声 + 同源 ACC/Gyro。
+def _ppg_template(ph):
+    """真实感 PPG 波形模板（相位 ph 为弧度）：基波 + 2/3/4 次谐波 + 相移。
 
-    场景只改变伪影强度，便于观察静息旁路与强伪影边界。
+    比"三个纯正弦"更接近真实脉搏：收缩峰陡峭、下降支带重搏波切迹，
+    使残差网络的 Δ 落在训练分布内（v1 的纯正弦输入会被网络过度修正）。
+    """
+    return (np.sin(ph)
+            + 0.38 * np.sin(2.0 * ph - 0.62)
+            + 0.20 * np.sin(3.0 * ph - 1.35)
+            + 0.09 * np.sin(4.0 * ph - 2.00))
+
+
+# 各场景：κ = 伪影标准差 / 脉搏标准差（与真实 CIME 的 κ 分布对齐）
+DEMO_KAPPA = {"rest": 0.10, "moderate": 1.0, "strong": 2.6}
+# 演示参数预设：静息场景刻意把旁路阈值调高，用来展示"伪影过小时不做处理"的可靠性门控
+DEMO_DEFAULTS = {
+    "rest": {"bypass_ratio": 0.50},
+    "moderate": {},
+    "strong": {},
+}
+DEMO_NOISE = {"rest": 1.0, "moderate": 2.4, "strong": 4.2}
+DEMO_LABELS = {
+    "rest": "静息（弱伪影：应触发静息旁路，输出≈原波形）",
+    "moderate": "中等运动（默认：伪影与脉搏同量级，最接近赛题主场景）",
+    "strong": "强运动（边界：伪影远大于脉搏，用于观察方法失效边界）",
+}
+
+
+def synth_demo(scenario: str = "moderate"):
+    """合成演示信号（v2）：真实 PPG 形态 + 与 IMU 非线性相关的运动伪影。
+
+    与 v1 的区别（v1 是 3 个纯正弦 + 伪影的精确线性副本，对网络属分布外）：
+    1. 干净脉搏用真实模板（收缩峰/重搏波）+ 呼吸基线漂移 + 呼吸性心率变异；
+    2. 伪影是幅度调制的多谐波（非纯正弦），强度按 κ 标定到真实 CIME 的水平；
+    3. ACC/Gyro 是伪影的**非线性**变换（tanh + 微分 + 噪声）→ RLS 无法完美估计，
+       更接近真实设备；避免 RLS 在弱伪影时把脉搏本身也拟合掉。
+
+    仍为**合成信号**：PRD 只用于验证端到端链路，不代表真实方法性能（真实 CIME 46.57）。
     """
     fs, n = 100.0, 3000
     t = np.arange(n) / fs
-    hr = 70.0 / 60.0
-    clean = (80.0 * np.sin(2 * np.pi * hr * t)
-             + 25.0 * np.sin(2 * np.pi * 2 * hr * t + 0.8)
-             + 12.0 * np.sin(2 * np.pi * 3 * hr * t + 1.7))
-    scale = {"rest": 0.06, "moderate": 1.0, "strong": 3.2}.get(scenario, 1.0)
-    noise = {"rest": 0.8, "moderate": 3.0, "strong": 7.0}.get(scenario, 3.0)
-    motion = scale * (40.0 * np.sin(2 * np.pi * 3.0 * t)
-                      + 18.0 * np.sin(2 * np.pi * 1.5 * t + 0.4))
-    rng = np.random.RandomState(0)
-    ppg = clean + motion + noise * rng.randn(n)
-    acc = (motion / 40.0 * 2.0)[None, :]
-    gyro = (np.roll(motion, 20) / 40.0 * 0.8)[None, :]
-    labels = {
-        "rest": "静息（弱伪影，用于观察静息旁路）",
-        "moderate": "中等运动（默认，伪影与脉搏同量级）",
-        "strong": "强运动（超出方法舒适区，用于观察边界）",
-    }
+
+    # ---- 干净脉搏：真实形态 + 呼吸基线 + 心率变异 ----
+    hr0 = 70.0 / 60.0
+    hr_t = hr0 * (1.0 + 0.035 * np.sin(2 * np.pi * 0.25 * t + 0.3))     # ±3.5% RSA
+    ph = 2.0 * np.pi * np.cumsum(hr_t) / fs
+    pulse = _ppg_template(ph)
+    pulse = pulse / (np.std(pulse) + 1e-9) * 22.0                        # 幅度 ~22 a.u.
+    resp = 3.0 * np.sin(2 * np.pi * 0.22 * t + 0.7)                      # 呼吸基线漂移
+    clean = pulse + resp
+
+    # ---- 运动伪影：幅度调制的多谐波，强度按 κ 标定 ----
+    kappa = DEMO_KAPPA.get(scenario, 1.0)
+    f_m = 1.85                                                           # 步频 ~1.85 Hz
+    am = 1.0 + 0.45 * np.sin(2 * np.pi * 0.33 * t + 0.2)                 # 幅度调制
+    m = am * (np.sin(2 * np.pi * f_m * t)
+              + 0.55 * np.sin(2 * np.pi * 2 * f_m * t + 0.8)
+              + 0.22 * np.sin(2 * np.pi * 3 * f_m * t + 1.9))
+    m = m / (np.std(m) + 1e-9) * (kappa * np.std(clean))
+    # 慢漂移（手部/身体姿态变化），与脉搏无关
+    drift = 0.35 * kappa * np.std(clean) * np.cumsum(np.random.RandomState(3).randn(n)) / np.sqrt(n)
+    motion = m + drift
+
+    # ---- IMU：**物理幅度**的加速度/角速度（含固定传感器噪声底）----
+    # ⚠️ 关键：ACC 幅度必须随真实运动幅度变化（κ 小 → ACC 小 → RLS 无法凭空拟合），
+    #    同时带固定噪声底，使弱运动时估计质量下降——这才是真实设备的物理关系。
+    rng = np.random.RandomState(7)
+    ms = np.std(motion) + 1e-9
+    acc_gain = 0.02                                   # 伪影 a.u. → ~g
+    acc_x = acc_gain * (motion + 0.25 * motion ** 3 / ms ** 2)   # 轻微非线性
+    acc_x = acc_x + 0.055 * rng.randn(n)                          # 固定噪声底
+    acc_y = 0.65 * np.roll(acc_x, 3) + 0.045 * rng.randn(n)
+    acc = np.vstack([acc_x, acc_y, 0.25 * np.roll(acc_x, 7) + 0.03 * rng.randn(n)])
+    g = np.gradient(motion)
+    gyro_y = 0.9 * g / (np.std(g) + 1e-9) * (ms * 0.02) + 0.05 * rng.randn(n)
+    gyro = np.vstack([0.2 * np.roll(gyro_y, 5), gyro_y, np.zeros(n)])
+
+    # ---- 传感器噪声（随运动增强）+ 含噪 PPG ----
+    noise_sd = DEMO_NOISE.get(scenario, 2.4)
+    ppg = clean + motion + noise_sd * rng.randn(n)
+
     return dict(ppg=ppg, acc=acc, gyro=gyro, reference=clean, fs=fs,
-                description=labels.get(scenario, scenario), scenario=scenario)
+                description=DEMO_LABELS.get(scenario, scenario), scenario=scenario,
+                kappa=float(kappa), synthetic=True,
+                demo_defaults=dict(DEMO_DEFAULTS.get(scenario, {})))
 
 
 def _npz_from_bytes(raw: bytes):
@@ -396,6 +455,17 @@ def _execute(inp: dict, params: dict) -> dict:
     if res.quality.get("bypass_applied"):
         warnings.append("伪影能量占比低于阈值，已触发静息旁路：输出等于原波形。")
 
+    synthetic = bool(inp.get("synthetic") or inp.get("source") == "demo")
+    # 链路自检（演示态代替 PRD 展示：PRD 对合成数据无物理意义）
+    link_check = {
+        "length_ok": bool(len(res.ppg_clean) == len(res.ppg_raw)),
+        "finite": bool(np.isfinite(res.ppg_clean).all()),
+        "changed": bool(np.max(np.abs(res.ppg_clean - res.ppg_raw)) > 1e-9),
+        "hr_ok": bool(res.hr_median is not None and np.isfinite(res.hr_median)),
+        "n_hr": int(0 if res.hr_bpm is None else len(res.hr_bpm)),
+        "artifact_nonzero": bool(np.any(np.abs(res.artifact) > 0)),
+        "bypass": bool(res.quality.get("bypass_applied")),
+    }
     ref = _align_reference(inp.get("reference"), fs, len(res.ppg_raw))
     ref_metrics = None
     if ref is not None:
@@ -444,6 +514,8 @@ def _execute(inp: dict, params: dict) -> dict:
         },
         "series": series,
         "reference_metrics": ref_metrics,
+        "synthetic": synthetic,
+        "link_check": link_check,
         "warnings": warnings,
         "params": params,
     }
@@ -604,7 +676,7 @@ def health():
     return jsonify({
         "ok": True,
         "service": "PPG artifact removal webapp",
-        "version": "1.0",
+        "version": "2.0",
         "torch": torch.__version__,
         "numpy": np.__version__,
         "models_loaded": sorted(MODELS.keys()),
@@ -679,8 +751,18 @@ def info():
             "max_input_samples": MAX_INPUT_SAMPLES,
             "fs_model": FS_MODEL,
         },
+        "demo": {
+            "note": "内置合成演示数据（真实 PPG 形态 + 物理幅度 IMU）。合成样例不计算 PRD；"
+                    "上传含 reference 的真实数据后显示 PRD/Pearson/SNR。",
+            "scenarios": [
+                {"key": k, "label": DEMO_LABELS[k], "kappa": DEMO_KAPPA[k],
+                 "defaults": DEMO_DEFAULTS.get(k, {})}
+                for k in ("rest", "moderate", "strong")
+            ],
+        },
         "datasets": datasets,
         "report": {
+            "version": "2.0",
             "cime_prd_raw": 103.41, "cime_prd_clean": 46.57,
             "cime_pearson": 0.9395, "cime_snr_db": 7.78,
             "lite_prd": 46.37,
@@ -741,6 +823,7 @@ def selfcheck():
         rm = payload.get("reference_metrics") or {}
         return jsonify(_clean({
             "ok": True,
+            "link_check": payload.get("link_check"),
             "prd_raw": (rm.get("raw") or {}).get("prd"),
             "prd_clean": (rm.get("clean") or {}).get("prd"),
             "hr_median": payload["result"].get("hr_median"),

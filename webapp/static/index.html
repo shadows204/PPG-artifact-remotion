@@ -298,7 +298,7 @@ hr.sep{border:0;border-top:1px solid var(--border);margin:18px 0}
     <div class="brand">
       <div class="logo">PPG</div>
       <div>
-        <h1>PPG 运动伪影去除 · 交互式工作台</h1>
+        <h1>PPG 运动伪影去除 · 交互式工作台 <span class="pill" id="verChip">v2.0</span></h1>
         <p>物理先验 RLS + 残差 U-Net + 频域 CRM ｜ 三波形 / 心率 / 质量指标 / 导出</p>
       </div>
     </div>
@@ -325,7 +325,9 @@ hr.sep{border:0;border-top:1px solid var(--border);margin:18px 0}
               <option value="strong">强运动 · 边界</option>
             </select>
           </label>
-          <p class="hint">内置合成信号（70 bpm + 运动伪影 + 同源 IMU），可零数据验证完整链路。PRD 仅供参考。</p>
+          <p class="hint">内置合成信号（真实 PPG 形态 70 bpm + 运动伪影 + 物理幅度 IMU），可零数据验证完整链路。
+          <b>合成样例不计算 PRD</b>：结果页改为「链路自检」；上传含 <span class="mono">reference</span> 的真实数据后显示 PRD/Pearson/SNR。</p>
+          <p class="hint" id="scenarioHint"></p>
         </div>
         <div id="uploadPanel" hidden>
           <div class="drop" id="dropZone">
@@ -417,7 +419,7 @@ hr.sep{border:0;border-top:1px solid var(--border);margin:18px 0}
           <div class="kpi"><div class="label">心率中位</div><div class="value green" id="kpiHr">—</div><div class="sub" id="kpiHrSub">bpm</div></div>
           <div class="kpi"><div class="label">伪影占比</div><div class="value purple" id="kpiRatio">—</div><div class="sub">std(M̂)/std(PPG)</div></div>
           <div class="kpi"><div class="label">静息旁路</div><div class="value" id="kpiBypass">—</div><div class="sub">低于阈值直接透传</div></div>
-          <div class="kpi"><div class="label">输出 SNR</div><div class="value blue" id="kpiSnr">—</div><div class="sub">10·log10(var(clean)/var(resid))</div></div>
+          <div class="kpi"><div class="label">输出 SNR</div><div class="value blue" id="kpiSnr">—</div><div class="sub" id="kpiSnrSub">10·log10(var(clean)/var(resid))</div></div>
           <div class="kpi"><div class="label">运行模式</div><div class="value" id="kpiMode" style="font-size:17px">—</div><div class="sub" id="kpiModeSub">IMU / 仅 ACC / 无 IMU</div></div>
           <div class="kpi"><div class="label">处理耗时</div><div class="value warn" id="kpiTime">—</div><div class="sub" id="kpiTimeSub">CPU 推理</div></div>
         </div>
@@ -938,6 +940,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   hrChart = new LineChart($("#hrCanvas"), $("#hrTip"),
     { pad: { l: 54, r: 18, t: 18, b: 36 }, yLabel: "HR (bpm)" });
   await Promise.all([loadInfo(), refreshHealth()]);
+  applyDemoDefaults();
   renderHistory();
   renderVisibility();
 });
@@ -972,6 +975,8 @@ function bindUI() {
 
   // 预设信息
   $("#preset").addEventListener("change", updatePresetInfo);
+  // 演示场景切换：应用该场景的预设参数（如静息场景刻意提高旁路阈值）
+  $("#demoScenario").addEventListener("change", applyDemoDefaults);
 
   // 运行
   $("#runBtn").addEventListener("click", () => runDenoise());
@@ -1046,6 +1051,49 @@ async function loadInfo() {
       模型原生采样率 ${j.limits.fs_model} Hz；输入上限 ${j.limits.max_input_samples.toLocaleString()} 点。<br>
       已检测数据集：${esc(ds)}。`;
   } catch (e) { console.warn(e); }
+}
+
+function applyDemoDefaults() {
+  const key = $("#demoScenario").value;
+  const demo = state.info && state.info.demo;
+  const sc = demo && (demo.scenarios || []).find(x => x.key === key);
+  if (!sc) return;
+  const defs = sc.defaults || {};
+  if (defs.bypass_ratio !== undefined && $("#bypassRatio")) {
+    $("#bypassRatio").value = defs.bypass_ratio;
+  }
+  let txt = "κ（伪影/脉搏）≈ " + sc.kappa;
+  if (defs.bypass_ratio !== undefined) {
+    txt += " ｜ 本场景预设旁路阈值 " + defs.bypass_ratio +
+           "，用于演示「伪影过小时不做处理」的可靠性门控";
+  }
+  $("#scenarioHint").textContent = txt;
+}
+
+function isSynthetic(j) {
+  return !!(j && (j.synthetic === true || (j.input && j.input.source === "demo")));
+}
+
+/* 演示态：用「链路自检」替代 PRD（合成数据的 PRD 无物理意义） */
+function renderLinkCheck(j) {
+  const lc = j.link_check || {};
+  const ok = (v) => (v ? "✓" : "✗");
+  $("#refSub").textContent = "合成演示信号：不计算 PRD（上传含 reference 的真实数据后自动显示）";
+  const rows = [
+    ["输出长度一致", ok(lc.length_ok) + " " + (j.result.n_samples || 0).toLocaleString() + " 点"],
+    ["数值有限（无 NaN/Inf）", ok(lc.finite)],
+    ["心率可用", lc.hr_ok ? "✓ " + fmt(j.result.hr_median, 1) + " bpm（" + lc.n_hr + " 窗）" : "—（窗口不足或已关闭）"],
+    ["伪影波形已估计", lc.artifact_nonzero ? "✓" : "—（无 IMU 时恒为 0）"],
+    ["静息旁路", lc.bypass ? "✓ 已触发（输出 = 原波形）" : "—（未触发）"],
+    ["输出波形", lc.changed ? "✓ 已处理" : "—（旁路时保持不变）"],
+  ];
+  $("#refBody").innerHTML =
+    `<table class="table"><tbody>` +
+    rows.map(([k, v]) => `<tr><th style="width:42%">${esc(k)}</th><td>${esc(v)}</td></tr>`).join("") +
+    `</tbody></table>
+     <p class="hint" style="margin-top:8px">这是<b>端到端链路自检</b>：确认「输入 → RLS 先验 → 残差网络 → 三波形/心率」全部正常。
+     合成样例的 PRD 无参考意义（参考并非真实 PPG 真值），因此不予展示；真实数据的方法性能：
+     CIME 1900 段 <b>PRD 103.41 → 46.57</b>（Pearson 0.9395 / SNR 7.78 dB）。</p>`;
 }
 
 function updatePresetInfo() {
@@ -1126,7 +1174,8 @@ async function runSelfcheck() {
   setLoading(true, "正在自检…", "合成中等运动样例 → 完整推理 → 计算 PRD");
   try {
     const j = await api("/api/selfcheck", { method: "POST" });
-    showAlert(`自检通过：PRD ${fmt(j.prd_raw, 2)} → ${fmt(j.prd_clean, 2)} ｜ 心率 ${fmt(j.hr_median, 1)} bpm ｜ ${fmt(j.elapsed_s, 2)} s。${j.note || ""}`,
+    const lc = j.link_check || {};
+    showAlert(`链路自检通过：长度 ${lc.length_ok ? "✓" : "✗"} ｜ 数值有限 ${lc.finite ? "✓" : "✗"} ｜ 心率 ${fmt(j.hr_median, 1)} bpm ｜ ${fmt(j.elapsed_s, 2)} s（合成样例，指标仅供回归比对）`,
       "success", 9000);
     await refreshHealth();
   } catch (e) {
@@ -1151,8 +1200,13 @@ function renderResult(j) {
   const by = q.bypass_applied;
   $("#kpiBypass").textContent = by ? "已旁路" : "未触发";
   $("#kpiBypass").className = "value " + (by ? "warn" : "green");
-  $("#kpiSnr").textContent = q.snr_improve_db == null ? "—" : fmt(q.snr_improve_db, 2);
-  if (q.snr_improve_db != null) $("#kpiSnr").innerHTML = fmt(q.snr_improve_db, 2) + '<small>dB</small>';
+  if (isSynthetic(j)) {
+    $("#kpiSnr").textContent = "—";
+    $("#kpiSnrSub").textContent = "合成样例不适用（真实数据可用）";
+  } else {
+    $("#kpiSnr").textContent = q.snr_improve_db == null ? "—" : fmt(q.snr_improve_db, 2);
+    if (q.snr_improve_db != null) $("#kpiSnr").innerHTML = fmt(q.snr_improve_db, 2) + '<small>dB</small>';
+  }
   const modeMap = { imu: "IMU 完整", imu_acc: "仅 ACC", no_imu: "无 IMU" };
   $("#kpiMode").textContent = modeMap[meta.mode] || meta.mode || "—";
   $("#kpiMode").style.fontSize = "17px";
@@ -1254,6 +1308,7 @@ function tableHTML(rows) {
 }
 
 function renderReference(j) {
+  if (isSynthetic(j)) { renderLinkCheck(j); return; }
   const rm = j.reference_metrics;
   if (!rm) {
     $("#refSub").textContent = "本次输入未提供参考波形";

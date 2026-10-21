@@ -159,6 +159,11 @@ OMP_NUM_THREADS=2 bash webapp/start.sh    # → http://127.0.0.1:8000
 - **内含**：lite + no_imu 模型、合成演示数据、网页与说明书；`BUNDLE_FULL=1` 可再带 full 预设。
 - 体积/启动/常见问题见 [webapp/packaging/README.md](webapp/packaging/README.md)。
 
+> **v2.0 更新（2026-10-21）**：内置演示数据改为**真实 PPG 形态 + 物理幅度 IMU**（v1 是纯正弦，属网络分布外）；
+> 演示态**不再显示 PRD**（合成数据的 PRD 无物理意义），改为「链路自检」（长度/有限值/心率/伪影/旁路），
+> 真实数据上传后自动恢复 PRD/Pearson/SNR；静息场景默认触发旁路以演示可靠性门控。
+> v1 原版已备份：本地 `webapp_原始版_v1备份_20261021/`、git tag `webapp-v1-original`。
+
 ## 5. 模型与预设
 
 `models/ppg_denoise_v1/manifest.json` 记录版本、每个权重的 sha256 与期望指标。
