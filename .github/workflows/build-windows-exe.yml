@@ -95,3 +95,4 @@ jobs:
           name: PPG-Workbench-${{ matrix.variant }}-windows
           path: dist/PPG-Workbench-${{ matrix.variant }}-windows.zip
           retention-days: 30
+
