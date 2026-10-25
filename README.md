@@ -92,7 +92,8 @@ OMP_NUM_THREADS=2 python webapp/server.py --port 8000
 - 本分支已带两个工作流：
   - `.github/workflows/build-windows-exe.yml`：push 到 `main`/`app` 或手动 Run → 产出两个 Artifacts（`PPG-Workbench-v1-windows.zip` / `-v2-windows.zip`）；
   - `.github/workflows/release-windows.yml`：**推 `v*` tag** → 构建 v1/v2 → 做冒烟测试 → **自动创建 Release** 并附两个 zip + `SHA256SUMS.txt`。
-- 发布一条：`git tag v2.0.0 && git push origin v2.0.0`
+- 发布一条（**tag 必须打在 `app` 分支上**，release 工作流随本分支提供）：
+  `git checkout app && git tag v2.0.0 && git push origin v2.0.0`
 
 **B. Windows 本机**
 
