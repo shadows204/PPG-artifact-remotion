@@ -5,6 +5,20 @@
 > 结果：CIME 波形 PRD **103.41 → 46.57**（Pearson 0.9395 / SNR 7.78 dB）；6 个公开域心率 MAE **1.06–16.03 bpm**。
 > 完整方法与实验见 **[实验最终报告.md](实验最终报告.md)**；框架图见 [figures/pipeline_framework.png](figures/pipeline_framework.png)。
 
+### 分支说明（先看这里）
+
+| 分支 | 内容 | 面向 |
+|---|---|---|
+| **`main`**（当前） | 算法主流程、训练/评估脚本、实验报告、模型权重、数据集说明 | 算法/评审/复现 |
+| **`app`** | **软件源码**：Web 工作台 v1/v2、单文件 exe 打包配置、构建/发布工作流（含独立 README） | 软件/演示/交付 |
+| **`datasets`** | 开放许可数据集子集（TROIKA + WRIST + BIDMC ≈ 244 MB，独立历史） | 快速跑通数据 |
+
+```bash
+git clone -b app    git@github.com:shadows204/PPG-artifact-remotion.git ppg-app    # 只拿软件
+git clone -b main   git@github.com:shadows204/PPG-artifact-remotion.git ppg-main   # 算法+报告
+git fetch origin datasets && git checkout origin/datasets -- datasets/            # 取开放数据
+```
+
 ---
 
 ## 1. 目录结构
@@ -22,18 +36,26 @@
 │   │   ├── residual.py crm.py models.py   # 网络结构（残差 U-Net / 频域 CRM / 主干 U-Net）
 │   │   ├── ext_loaders.py        # 6 个公开数据集加载器（采样率/通道/NaN 统一）
 │   │   ├── metrics.py  dataset.py  rls.py  domain_rand.py  gan.py
-│   │   ├── gan.py
 │   │   └── (pipeline 主流程见 scripts/pipeline/pipeline.py)
 │   ├── pipeline/pipeline.py      # 主流水线（数据→RLS 标定→特征→训练→评估→HR）
-│   └── tools/                    # 必要脚本（见 §7）
+│   └── tools/                    # 脚本一览（见 §8）
 ├── models/ppg_denoise_v1/        # 训练好的权重（manifest.json 含 sha256）
 │   ├── lite/                     # 5 残差 + 3 CRM，15 MB，PRD 46.37（推荐，软件用）
 │   ├── full/                     # 41 残差 + 3 CRM，108 MB，PRD 46.57
 │   └── no_imu/                   # 无 IMU 退化路径（1 通道）
+├── webapp/                       # ★ Web 工作台 v2 源码（后端 + 前端 + 打包配置）
+│   ├── server.py  static/index.html  使用说明书.md  start.sh
+│   └── packaging/                # PyInstaller spec + Windows/Linux 构建脚本
+├── webapp_v1/                    # 原始版（v1）源码：对照版本 / 构建 PPG-Workbench-v1.exe
+├── .github/workflows/            # 构建（Artifacts）+ tag 发布（Release）工作流
+├── PPG 运动伪影去除 · Web 工作台使用说明书.pdf   # 说明书打印版
 ├── datasets/                     # 只放 README（数据需自行下载，见 datasets/README.md）
 ├── figures/pipeline_framework.png
 └── outputs/                      # 运行产物（仓库内为空）
 ```
+
+> 软件源码的**独立分支**为 `app`（内容与上面 `webapp/` `webapp_v1/` 一致，另带最小算法依赖与 README）；
+> main 中保留同一份副本便于一处查看与回溯，两者以 `app` 分支为准。
 
 ---
 
@@ -140,6 +162,10 @@ python scripts/tools/run_denoise.py --demo --out outputs/out --eval-test 60
 
 ## 4. Web 工作台（网页版 / 免安装 exe）
 
+> 软件交付以 **`app` 分支**为准（含完整 README、最小依赖、构建与发布工作流）：
+> `git clone -b app git@github.com:shadows204/PPG-artifact-remotion.git`。
+> 本节保留在 main 中，方便算法同学一处查看。
+
 `webapp/` 把算法包装成本地网页应用：选演示数据或上传文件 → **三波形交互**（缩放/平移/悬停读数）+ 心率曲线 + 质量指标 + 一键导出（NPZ/JSON/CSV/PNG）。
 后端 `webapp/server.py`（Flask），前端 `webapp/static/index.html`（单文件、无 CDN）；详细说明见 [webapp/使用说明书.md](webapp/使用说明书.md)。
 
@@ -155,9 +181,12 @@ OMP_NUM_THREADS=2 bash webapp/start.sh    # → http://127.0.0.1:8000
 - **产物（两个单文件，无控制台窗口，双击即用）**：
   - `PPG-Workbench-v1.exe`：原始版（合成正弦演示、显示 PRD，用于对照）；
   - `PPG-Workbench-v2.exe`：增强版（真实形态演示 + 演示态「链路自检」+ 静息旁路演示）。
-- **构建**（二选一）：
-  - **推荐**：仓库 → Actions → `build-windows-exe` → Run workflow（自动并行构建 v1/v2）→ 下载 Artifacts；
-  - Windows 本机：双击 `webapp\packaging\build_windows.bat`（本机只需装 Python 用于构建，成品不需要）。
+- **构建**（三选一）：
+  - **推荐**：仓库 → Actions → `build-windows-exe` → Run workflow（自动并行构建 v1/v2）→ 下载 Artifacts
+    （`PPG-Workbench-v1-windows.zip` / `PPG-Workbench-v2-windows.zip`，各含一个单文件 exe）；
+  - Windows 本机：双击 `webapp\packaging\build_windows.bat`（本机只需装 Python 用于构建，成品不需要）；
+  - **发布正式 Release**：推 `v*` tag（`git tag v2.0.0 && git push origin v2.0.0`）→ `release-windows`
+    工作流自动构建 v1/v2、跑冒烟测试、生成 `SHA256SUMS.txt` 并创建 Release 附上两个 zip。
 - **使用**：双击 exe → 自动打开浏览器（演示数据可直接演示；外部数据用网页上传）；**退出**点右上角 **⏻**。
 - **内含**：Python 运行时 + CPU 版 torch + lite/no_imu 模型 + 合成演示数据 + 网页与说明书；单文件可直接拷贝。
 - 体积/启动/常见问题见 [webapp/packaging/README.md](webapp/packaging/README.md)。
@@ -238,7 +267,7 @@ python scripts/tools/draw_framework.py             # 框架图
 
 ---
 
-## 8. 脚本一览（仓库内保留的必要脚本）
+## 8. 脚本与打包配置一览
 
 | 脚本 | 作用 |
 |---|---|
@@ -261,6 +290,10 @@ python scripts/tools/draw_framework.py             # 框架图
 | `scripts/tools/make_features_alpha.py` / `make_seg_features.py` | α / 段长消融特征 |
 | `scripts/tools/draw_framework.py` | 框架图渲染 |
 | `scripts/tools/download_datasets.py` | 公开数据集下载 |
+| `webapp/server.py` + `webapp/static/index.html` | Web 工作台后端/前端（三波形、心率、导出、退出接口） |
+| `webapp/packaging/*.spec` + `build_*.{bat,sh}` | 单文件 exe 打包（onefile·无控制台，`VARIANT=v1|v2`） |
+| `.github/workflows/build-windows-exe.yml` | push/手动 → Windows 构建 v1/v2 → Artifacts |
+| `.github/workflows/release-windows.yml` | tag `v*` → 自动创建 Release（两个单文件 exe + 校验和） |
 
 ---
 
