@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+# 运行产物（仓库内 outputs 只保留 README）
+outputs/*
+!outputs/README.md
+# 数据集（体积大且各有许可，见 datasets/README.md）
+datasets/*
+!datasets/README.md
+# 其它
+.DS_Store
+*.egg-info/
+.ipynb_checkpoints/
+
+# 打包产物 / 构建环境
+dist/
+build/
+.venv-build/
+*.manifest
+workbench.log

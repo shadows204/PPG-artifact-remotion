@@ -1,0 +1,292 @@
+{
+  "name": "ppg_denoise",
+  "version": "v1",
+  "created": "2026-10-18",
+  "description": "CIME 波形去伪影：RLS 物理先验 + 残差 U-Net 集成 + 频域 CRM 融合。输入 PPG（可选 ACC/Gyro），输出 原波形/伪影波形/滤净波形。",
+  "presets": {
+    "lite": {
+      "dir": "lite",
+      "files": {
+        "crm_rls_b5f512_0_s0.pt": {
+          "sha256": "2076b8e9cf62a581",
+          "bytes": 805513
+        },
+        "crm_rls_b5f512_1_s1.pt": {
+          "sha256": "cd731d8c4aa0093e",
+          "bytes": 805513
+        },
+        "crm_rls_b5f512_2_s2.pt": {
+          "sha256": "c5a6be8908960138",
+          "bytes": 805513
+        },
+        "residual_rls_b3c3_6_s6.pt": {
+          "sha256": "809519a77f71d9dd",
+          "bytes": 2735605
+        },
+        "residual_rls_ens30_s26.pt": {
+          "sha256": "160d35fe67d50947",
+          "bytes": 2700869
+        },
+        "residual_rls_p3vin_s0.pt": {
+          "sha256": "0ca985cd439c9443",
+          "bytes": 2700761
+        },
+        "residual_rls_p3vin_s1.pt": {
+          "sha256": "2b0e7f794cbf4e21",
+          "bytes": 2700761
+        },
+        "residual_rls_p3vin_s4.pt": {
+          "sha256": "50a981d266b477ff",
+          "bytes": 2700761
+        }
+      },
+      "n_residual": 5,
+      "n_crm": 3,
+      "expected_test_prd": 46.37,
+      "note": "按验证集 PRD 选 5 残差 + 3 CRM；16 MB；推荐软件用",
+      "total_bytes": 15955296
+    },
+    "full": {
+      "dir": "full",
+      "files": {
+        "crm_rls_b5f512_0_s0.pt": {
+          "sha256": "2076b8e9cf62a581",
+          "bytes": 805513
+        },
+        "crm_rls_b5f512_1_s1.pt": {
+          "sha256": "cd731d8c4aa0093e",
+          "bytes": 805513
+        },
+        "crm_rls_b5f512_2_s2.pt": {
+          "sha256": "c5a6be8908960138",
+          "bytes": 805513
+        },
+        "residual_rls_b3c3_0_s0.pt": {
+          "sha256": "1179911377e94499",
+          "bytes": 2735605
+        },
+        "residual_rls_b3c3_10_s10.pt": {
+          "sha256": "af41bf5668beef45",
+          "bytes": 2735765
+        },
+        "residual_rls_b3c3_11_s11.pt": {
+          "sha256": "ddbdb911357d8f48",
+          "bytes": 2735765
+        },
+        "residual_rls_b3c3_12_s12.pt": {
+          "sha256": "7f1dfe0553a87600",
+          "bytes": 2735765
+        },
+        "residual_rls_b3c3_1_s1.pt": {
+          "sha256": "b0bd0a651c0da9a1",
+          "bytes": 2735605
+        },
+        "residual_rls_b3c3_2_s2.pt": {
+          "sha256": "10a587c383c49245",
+          "bytes": 2735605
+        },
+        "residual_rls_b3c3_3_s3.pt": {
+          "sha256": "1c0d01dc21f09120",
+          "bytes": 2735605
+        },
+        "residual_rls_b3c3_4_s4.pt": {
+          "sha256": "5254f49da9293fd6",
+          "bytes": 2735605
+        },
+        "residual_rls_b3c3_5_s5.pt": {
+          "sha256": "d296660a8edd957e",
+          "bytes": 2735605
+        },
+        "residual_rls_b3c3_6_s6.pt": {
+          "sha256": "809519a77f71d9dd",
+          "bytes": 2735605
+        },
+        "residual_rls_b3c3_7_s7.pt": {
+          "sha256": "533b8833f9521ffd",
+          "bytes": 2735605
+        },
+        "residual_rls_b3c3_8_s8.pt": {
+          "sha256": "81b99db6a9857730",
+          "bytes": 2735605
+        },
+        "residual_rls_b3c3_9_s9.pt": {
+          "sha256": "cb082671ed7fe06e",
+          "bytes": 2735605
+        },
+        "residual_rls_ens30_s15.pt": {
+          "sha256": "37a39132a3d47dda",
+          "bytes": 2700869
+        },
+        "residual_rls_ens30_s16.pt": {
+          "sha256": "50ef77f526b0bf4c",
+          "bytes": 2700869
+        },
+        "residual_rls_ens30_s17.pt": {
+          "sha256": "0d2f3a84aa46cede",
+          "bytes": 2700869
+        },
+        "residual_rls_ens30_s18.pt": {
+          "sha256": "a39ddd157edf249e",
+          "bytes": 2700869
+        },
+        "residual_rls_ens30_s19.pt": {
+          "sha256": "f49f707515e38fa8",
+          "bytes": 2700869
+        },
+        "residual_rls_ens30_s20.pt": {
+          "sha256": "ac162899794aff0e",
+          "bytes": 2700869
+        },
+        "residual_rls_ens30_s21.pt": {
+          "sha256": "636a25d628535e17",
+          "bytes": 2700869
+        },
+        "residual_rls_ens30_s22.pt": {
+          "sha256": "6145553fb49b6b3b",
+          "bytes": 2700869
+        },
+        "residual_rls_ens30_s23.pt": {
+          "sha256": "4ba5df19a6d9ac98",
+          "bytes": 2700869
+        },
+        "residual_rls_ens30_s24.pt": {
+          "sha256": "d13acd3226cde5de",
+          "bytes": 2700869
+        },
+        "residual_rls_ens30_s25.pt": {
+          "sha256": "8d5f15bb0f827be6",
+          "bytes": 2700869
+        },
+        "residual_rls_ens30_s26.pt": {
+          "sha256": "160d35fe67d50947",
+          "bytes": 2700869
+        },
+        "residual_rls_ens30_s27.pt": {
+          "sha256": "fd39248744b98df7",
+          "bytes": 2700869
+        },
+        "residual_rls_ens30_s28.pt": {
+          "sha256": "a1b048f5e9bdf71f",
+          "bytes": 2700869
+        },
+        "residual_rls_ens30_s29.pt": {
+          "sha256": "ef296d50f08a2e45",
+          "bytes": 2700869
+        },
+        "residual_rls_p3vin_s0.pt": {
+          "sha256": "0ca985cd439c9443",
+          "bytes": 2700761
+        },
+        "residual_rls_p3vin_s1.pt": {
+          "sha256": "2b0e7f794cbf4e21",
+          "bytes": 2700761
+        },
+        "residual_rls_p3vin_s10.pt": {
+          "sha256": "8903d4be22ede820",
+          "bytes": 2700869
+        },
+        "residual_rls_p3vin_s11.pt": {
+          "sha256": "8353ac8002c3d091",
+          "bytes": 2700869
+        },
+        "residual_rls_p3vin_s12.pt": {
+          "sha256": "d801f2fff733384f",
+          "bytes": 2700869
+        },
+        "residual_rls_p3vin_s13.pt": {
+          "sha256": "238ebc34f6487bb1",
+          "bytes": 2700869
+        },
+        "residual_rls_p3vin_s14.pt": {
+          "sha256": "70cba2ce41fed795",
+          "bytes": 2700869
+        },
+        "residual_rls_p3vin_s2.pt": {
+          "sha256": "36065e3b5bac2ef6",
+          "bytes": 2700761
+        },
+        "residual_rls_p3vin_s3.pt": {
+          "sha256": "647b70efe55b3727",
+          "bytes": 2700761
+        },
+        "residual_rls_p3vin_s4.pt": {
+          "sha256": "50a981d266b477ff",
+          "bytes": 2700761
+        },
+        "residual_rls_p3vin_s6.pt": {
+          "sha256": "f5ffad7af502aad6",
+          "bytes": 2700761
+        },
+        "residual_rls_p3vin_s7.pt": {
+          "sha256": "53e655efdc4d941f",
+          "bytes": 2700761
+        },
+        "residual_rls_p3vin_s8.pt": {
+          "sha256": "790209c80afe06da",
+          "bytes": 2700761
+        }
+      },
+      "n_residual": 41,
+      "n_crm": 3,
+      "expected_test_prd": 46.57,
+      "note": "41 残差 + 3 CRM；约 113 MB",
+      "total_bytes": 113603352
+    }
+  },
+  "no_imu": {
+    "dir": "no_imu",
+    "note": "无 IMU 退化路径（1 通道，BatchNorm，AdaBN 可用）",
+    "files": {
+      "ppg_only_s0.pt": {
+        "sha256": "27dd743065a63a20",
+        "bytes": 2706910
+      },
+      "ppg_only_s1.pt": {
+        "sha256": "3a19bf76c5f3351b",
+        "bytes": 2706910
+      },
+      "ppg_only_s2.pt": {
+        "sha256": "56214b89a0ae49c7",
+        "bytes": 2706910
+      }
+    }
+  },
+  "preprocessing": {
+    "fs_model": 100.0,
+    "win_s": 30.0,
+    "hop_s": 15.0,
+    "rls": {
+      "taps": 4,
+      "lam": 0.995,
+      "alpha": 0.4,
+      "reference": "有 gyro: ACC_x + Gyro_y（异质两路）；无 gyro: 3 轴 ACC"
+    },
+    "condition_mu": [
+      7.759,
+      0.521,
+      0.525
+    ],
+    "condition_sd": [
+      0.998,
+      0.101,
+      0.131
+    ],
+    "feature_norm": "逐段按含噪 PPG 的 std 标准化（ppg/scale, M̂/scale, PPG_RLS/scale）"
+  },
+  "fusion": {
+    "crm_weight": 0.15,
+    "bypass_artifact_ratio": 0.05
+  },
+  "interface": {
+    "module": "scripts/modules/ppg_api.py",
+    "cli": "scripts/tools/run_denoise.py",
+    "outputs": [
+      "t",
+      "ppg_raw",
+      "artifact",
+      "ppg_prior",
+      "ppg_clean",
+      "hr_bpm"
+    ]
+  }
+}

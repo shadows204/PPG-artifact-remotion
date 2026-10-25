@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PPG 运动伪影去除 · 交互式工作台</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%234f8cff'/%3E%3Cpath d='M8 38h10l5-16 7 30 6-24 4 10h16' fill='none' stroke='%232ee6a8' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#0a0f1d; --bg2:#0e1628; --panel:#111b30; --panel2:#16223c;
+  --border:#223252; --border2:#2d4066; --text:#e8eefb; --muted:#8fa0bd;
+  --accent:#2ee6a8; --accent2:#4f8cff; --danger:#ff5d73; --warn:#f5b942;
+  --purple:#a78bfa; --ref:#94a3b8; --grid:rgba(143,160,189,.14);
+  --shadow:0 18px 50px rgba(0,0,0,.35); --radius:16px;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+}
+html[data-theme="light"]{
+  --bg:#eef2f9; --bg2:#e6ecf6; --panel:#ffffff; --panel2:#f5f8fd;
+  --border:#d9e2f1; --border2:#c3d1e8; --text:#16223c; --muted:#60708c;
+  --accent:#07875f; --accent2:#2563eb; --danger:#d92d4b; --warn:#b87700;
+  --purple:#7c3aed; --ref:#64748b; --grid:rgba(22,34,60,.1);
+  --shadow:0 18px 50px rgba(30,50,90,.12);
+}
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+html,body{height:100%}
+body{
+  margin:0; background:radial-gradient(1200px 700px at 75% -10%, rgba(79,140,255,.18), transparent 60%),
+  radial-gradient(900px 600px at 10% 110%, rgba(46,230,168,.12), transparent 55%), var(--bg);
+  color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"SF Pro SC","PingFang SC",
+  "Segoe UI","Microsoft YaHei",sans-serif; font-size:14px; line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{background:rgba(79,140,255,.35)}
+a{color:var(--accent2); text-decoration:none}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+code,kbd,pre{font-family:var(--mono)}
+.app{max-width:1560px;margin:0 auto;padding:18px 22px 32px}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:20px}
+.brand{display:flex;align-items:center;gap:14px;min-width:0}
+.logo{
+  width:46px;height:46px;border-radius:14px;display:grid;place-items:center;
+  background:linear-gradient(135deg,var(--accent2),var(--accent));
+  color:#06121f;font-weight:900;font-size:13px;letter-spacing:.5px;
+  box-shadow:0 10px 26px rgba(46,230,168,.25); flex:0 0 auto;
+}
+.brand h1{font-size:19px;margin:0;letter-spacing:.2px;white-space:nowrap}
+.brand p{margin:2px 0 0;color:var(--muted);font-size:12px;white-space:nowrap}
+.top-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.chip{
+  display:inline-flex;align-items:center;gap:7px;padding:6px 11px;border-radius:999px;
+  background:var(--panel);border:1px solid var(--border);color:var(--muted);
+  font-size:12px;white-space:nowrap
+}
+.chip .dot{width:7px;height:7px;border-radius:50%;background:var(--muted)}
+.chip.ok .dot{background:var(--accent);box-shadow:0 0 0 4px rgba(46,230,168,.12)}
+.chip.bad .dot{background:var(--danger);box-shadow:0 0 0 4px rgba(255,93,115,.12)}
+.chip.load .dot{background:var(--warn);box-shadow:0 0 0 4px rgba(245,185,66,.12);animation:pulse 1.2s infinite}
+@keyframes pulse{50%{opacity:.35}}
+.icon-btn{
+  width:36px;height:36px;border-radius:10px;border:1px solid var(--border);
+  background:var(--panel);display:grid;place-items:center;color:var(--text);font-size:15px
+}
+.icon-btn:hover{border-color:var(--border2);background:var(--panel2)}
+
+.layout{display:grid;grid-template-columns:356px minmax(0,1fr);gap:18px;align-items:start}
+.sidebar{display:flex;flex-direction:column;gap:14px;position:sticky;top:18px}
+.card{
+  background:linear-gradient(180deg,var(--panel),var(--panel2));
+  border:1px solid var(--border);border-radius:var(--radius);padding:16px;
+  box-shadow:var(--shadow)
+}
+.card h2{font-size:13px;margin:0 0 12px;letter-spacing:.4px;text-transform:uppercase;color:var(--muted)}
+.card h3{font-size:14px;margin:16px 0 8px}
+.hint{color:var(--muted);font-size:12px;margin:8px 0 0}
+.mono{font-family:var(--mono)}
+.segmented{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;background:var(--bg2);
+  border:1px solid var(--border);border-radius:12px;margin-bottom:12px}
+.segmented button{
+  border:0;background:transparent;color:var(--muted);padding:8px 10px;border-radius:9px;
+  font-size:13px;font-weight:600
+}
+.segmented button.active{background:var(--panel);color:var(--text);box-shadow:0 2px 10px rgba(0,0,0,.18)}
+label.field{display:block;font-size:12px;color:var(--muted);margin:0 0 9px}
+label.field span{display:block;margin-bottom:5px}
+select,input[type="number"],input[type="text"]{
+  width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:10px;
+  padding:9px 10px;color:var(--text);outline:none
+}
+select:focus,input:focus{border-color:var(--accent2);box-shadow:0 0 0 3px rgba(79,140,255,.15)}
+input::placeholder{color:var(--muted);opacity:.6}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.check{display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--muted);margin:8px 0 0;cursor:pointer}
+.check input{margin-top:2px;accent-color:var(--accent2)}
+details.advanced{margin-top:12px;border-top:1px dashed var(--border);padding-top:11px}
+details.advanced summary{cursor:pointer;color:var(--muted);font-size:12px;font-weight:600;list-style:none}
+details.advanced summary::-webkit-details-marker{display:none}
+details.advanced summary:before{content:"▸ ";color:var(--accent2)}
+details.advanced[open] summary:before{content:"▾ "}
+details.advanced .inner{padding-top:12px}
+.drop{
+  border:1.5px dashed var(--border2);border-radius:14px;padding:20px 14px;text-align:center;
+  background:rgba(79,140,255,.04);transition:.18s;cursor:pointer
+}
+.drop:hover,.drop.drag{border-color:var(--accent2);background:rgba(79,140,255,.1)}
+.drop .big{font-size:22px;margin-bottom:6px}
+.drop b{color:var(--text);font-size:13px}
+.drop small{display:block;color:var(--muted);margin-top:5px;font-size:11px}
+.filemeta{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;
+  padding:9px 11px;border-radius:10px;background:var(--bg2);border:1px solid var(--border);font-size:12px}
+.filemeta .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.filemeta .x{border:0;background:transparent;color:var(--muted);font-size:15px;padding:0 3px}
+.modelbadge{
+  margin:9px 0 10px;padding:10px 11px;border-radius:10px;background:rgba(46,230,168,.07);
+  border:1px solid rgba(46,230,168,.22);color:var(--text);font-size:12px
+}
+.modelbadge b{color:var(--accent)}
+.modelbadge .sub{color:var(--muted);font-size:11px;display:block;margin-top:3px}
+.primary{
+  width:100%;border:0;border-radius:12px;padding:13px 16px;font-weight:800;font-size:14px;
+  color:#06121f;background:linear-gradient(135deg,var(--accent),#7bf0c8);
+  box-shadow:0 12px 28px rgba(46,230,168,.22);transition:.18s;letter-spacing:.3px
+}
+.primary:hover{transform:translateY(-1px);filter:brightness(1.04)}
+.primary:disabled{opacity:.55;cursor:not-allowed;transform:none}
+.ghost{
+  width:100%;border:1px solid var(--border);border-radius:12px;padding:10px 14px;
+  background:var(--panel);color:var(--muted);font-weight:600;font-size:12px
+}
+.ghost:hover{border-color:var(--border2);color:var(--text)}
+.history-list{display:flex;flex-direction:column;gap:6px;max-height:210px;overflow:auto}
+.history-item{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 9px;
+  border:1px solid var(--border);border-radius:9px;background:var(--bg2);font-size:11px;
+  cursor:pointer;text-align:left;width:100%;color:var(--text)
+}
+.history-item:hover{border-color:var(--accent2)}
+.history-item .meta{color:var(--muted);font-size:10px}
+.history-item .hr{color:var(--accent);font-weight:800;white-space:nowrap}
+.empty-history{color:var(--muted);font-size:11px;padding:4px 2px}
+
+.content{min-width:0}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.tab{
+  border:1px solid var(--border);background:var(--panel);color:var(--muted);
+  border-radius:999px;padding:8px 15px;font-size:12px;font-weight:700;transition:.16s
+}
+.tab:hover{color:var(--text);border-color:var(--border2)}
+.tab.active{background:var(--text);color:var(--bg);border-color:var(--text)}
+.alert{
+  display:flex;align-items:flex-start;gap:10px;padding:11px 13px;border-radius:12px;
+  border:1px solid var(--border);background:var(--panel);color:var(--text);font-size:12px;
+  margin-bottom:12px
+}
+.alert.error{border-color:rgba(255,93,115,.4);background:rgba(255,93,115,.09)}
+.alert.success{border-color:rgba(46,230,168,.4);background:rgba(46,230,168,.08)}
+.alert.warn{border-color:rgba(245,185,66,.4);background:rgba(245,185,66,.08)}
+.alert .x{margin-left:auto;border:0;background:transparent;color:var(--muted);font-size:16px;line-height:1}
+.warnings{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.warnings .alert{margin:0}
+.loading{
+  display:flex;align-items:center;gap:12px;padding:16px 18px;border-radius:14px;
+  border:1px solid var(--border);background:var(--panel);margin-bottom:12px;color:var(--muted)
+}
+.spinner{
+  width:20px;height:20px;border-radius:50%;border:2px solid var(--border2);
+  border-top-color:var(--accent);animation:spin .8s linear infinite;flex:0 0 auto
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty{
+  min-height:420px;border:1px dashed var(--border2);border-radius:20px;
+  background:linear-gradient(180deg,rgba(79,140,255,.05),transparent);
+  display:grid;place-items:center;text-align:center;padding:40px
+}
+.empty .inner{max-width:430px}
+.empty .glyph{
+  width:68px;height:68px;margin:0 auto 16px;border-radius:20px;display:grid;place-items:center;
+  background:linear-gradient(135deg,rgba(79,140,255,.22),rgba(46,230,168,.18));
+  border:1px solid var(--border2);font-size:28px
+}
+.empty h2{font-size:18px;margin:0 0 8px}
+.empty p{color:var(--muted);margin:0;font-size:13px}
+.empty code{background:var(--bg2);border:1px solid var(--border);padding:2px 6px;border-radius:6px;font-size:12px}
+
+.kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:14px}
+.kpi{
+  background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--border);
+  border-radius:14px;padding:12px 13px;min-width:0;box-shadow:0 8px 24px rgba(0,0,0,.12)
+}
+.kpi .label{color:var(--muted);font-size:10px;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi .value{font-size:24px;font-weight:800;letter-spacing:-.4px;margin-top:3px;line-height:1.15;white-space:nowrap}
+.kpi .value small{font-size:11px;color:var(--muted);font-weight:600;margin-left:2px}
+.kpi .value.green{color:var(--accent)}
+.kpi .value.blue{color:var(--accent2)}
+.kpi .value.purple{color:var(--purple)}
+.kpi .value.warn{color:var(--warn)}
+.kpi .value.danger{color:var(--danger)}
+.kpi .sub{color:var(--muted);font-size:10px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.panel{display:flex;flex-direction:column;gap:14px}
+.chart-card{padding:14px 16px 8px}
+.chart-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px}
+.chart-head h2{font-size:15px;margin:0;color:var(--text);text-transform:none;letter-spacing:0}
+.chart-head p{margin:3px 0 0;color:var(--muted);font-size:11px}
+.legend{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.legend button{
+  display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);
+  background:var(--bg2);color:var(--text);border-radius:999px;padding:4px 9px;font-size:11px;
+  opacity:.95
+}
+.legend button.off{opacity:.38;text-decoration:line-through}
+.legend .swatch{width:14px;height:3px;border-radius:2px;background:currentColor}
+.chart-wrap{position:relative;height:430px;margin-top:2px}
+.chart-wrap.hr{height:300px}
+.chart-wrap canvas{width:100%;height:100%;display:block;border-radius:10px}
+.tooltip{
+  position:absolute;pointer-events:none;z-index:5;min-width:158px;max-width:260px;
+  background:rgba(9,15,29,.94);border:1px solid var(--border2);border-radius:10px;
+  padding:9px 10px;font-size:11px;box-shadow:0 14px 36px rgba(0,0,0,.45);
+  opacity:0;transform:translateY(4px);transition:opacity .1s
+}
+html[data-theme="light"] .tooltip{background:rgba(255,255,255,.97)}
+.tooltip.show{opacity:1;transform:none}
+.tooltip .tt-time{color:var(--muted);margin-bottom:5px;font-family:var(--mono)}
+.tooltip .tt-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:2px 0}
+.tooltip .tt-row .n{display:flex;align-items:center;gap:6px;color:var(--muted)}
+.tooltip .tt-row .sw{width:8px;height:8px;border-radius:2px}
+.tooltip .tt-row b{font-family:var(--mono);font-weight:700}
+.chart-tools{display:flex;gap:6px;align-items:center}
+.mini-btn{
+  border:1px solid var(--border);background:var(--bg2);color:var(--muted);border-radius:8px;
+  padding:5px 9px;font-size:11px
+}
+.mini-btn:hover{color:var(--text);border-color:var(--border2)}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.table{width:100%;border-collapse:collapse;font-size:12px}
+.table th,.table td{padding:8px 6px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top}
+.table th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.table tr:last-child td{border-bottom:0}
+.table td.num{font-family:var(--mono);text-align:right}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700;background:rgba(46,230,168,.1);color:var(--accent);border:1px solid rgba(46,230,168,.25)}
+.badge.red{background:rgba(255,93,115,.1);color:var(--danger);border-color:rgba(255,93,115,.25)}
+.badge.blue{background:rgba(79,140,255,.1);color:var(--accent2);border-color:rgba(79,140,255,.25)}
+.badge.gray{background:var(--bg2);color:var(--muted);border-color:var(--border)}
+.quality-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.qitem{padding:11px 12px;border:1px solid var(--border);border-radius:11px;background:var(--bg2)}
+.qitem .k{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.4px}
+.qitem .v{font-size:16px;font-weight:800;margin-top:2px;font-family:var(--mono)}
+.qitem .v small{font-size:10px;color:var(--muted)}
+pre.code{
+  margin:0;background:var(--bg2);border:1px solid var(--border);border-radius:11px;
+  padding:12px;overflow:auto;font-size:11.5px;line-height:1.55;max-height:360px;color:var(--text)
+}
+.downloads{display:flex;gap:8px;flex-wrap:wrap}
+.dl{
+  display:inline-flex;align-items:center;gap:7px;border:1px solid var(--border);border-radius:10px;
+  background:var(--bg2);color:var(--text);padding:9px 12px;font-size:12px;font-weight:600
+}
+.dl:hover{border-color:var(--accent2);background:rgba(79,140,255,.08)}
+.dl .ext{color:var(--muted);font-size:10px;font-family:var(--mono)}
+.section-title{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.section-title h2{font-size:15px;margin:0;color:var(--text);text-transform:none;letter-spacing:0}
+.section-title p{margin:2px 0 0;color:var(--muted);font-size:11px}
+.help{display:flex;flex-direction:column;gap:14px}
+.help h2{font-size:17px;margin:0 0 6px}
+.help h3{font-size:13px;margin:16px 0 6px;color:var(--text)}
+.help p,.help li{color:var(--muted);font-size:12.5px}
+.help ul{margin:6px 0;padding-left:20px}
+.help .pill{display:inline-block;padding:1px 7px;border-radius:6px;background:var(--bg2);border:1px solid var(--border);font-family:var(--mono);font-size:11px;color:var(--text)}
+.help table{font-size:12px}
+.help code{background:var(--bg2);border:1px solid var(--border);padding:1px 5px;border-radius:5px;font-size:11.5px}
+.help .callout{border-left:3px solid var(--accent2);padding:8px 12px;background:rgba(79,140,255,.06);border-radius:0 10px 10px 0;color:var(--muted);font-size:12px;margin:10px 0}
+.footer{color:var(--muted);font-size:11px;text-align:center;margin-top:26px;line-height:1.7}
+.footer b{color:var(--text)}
+hr.sep{border:0;border-top:1px solid var(--border);margin:18px 0}
+@media (max-width:1180px){
+  .kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media (max-width:980px){
+  .layout{grid-template-columns:1fr}
+  .sidebar{position:static}
+  .two-col{grid-template-columns:1fr}
+  .quality-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:640px){
+  .app{padding:12px}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .brand p{display:none}
+  .chart-wrap{height:330px}
+  .top-actions .chip:nth-child(3){display:none}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">PPG</div>
+      <div>
+        <h1>PPG 运动伪影去除 · 交互式工作台</h1>
+        <p>物理先验 RLS + 残差 U-Net + 频域 CRM ｜ 三波形 / 心率 / 质量指标 / 导出</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <span class="chip" id="healthChip"><span class="dot"></span><span id="healthText">连接中…</span></span>
+      <span class="chip" id="modelChip"><span class="dot"></span><span id="modelText">模型未加载</span></span>
+      <button class="icon-btn" id="themeBtn" title="切换明暗主题">◐</button>
+      <button class="icon-btn" id="quitBtn" title="退出应用">⏻</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <section class="card">
+        <h2>1 · 数据源</h2>
+        <div class="segmented" id="sourceTabs">
+          <button data-source="demo" class="active">演示数据</button>
+          <button data-source="file">上传文件</button>
+        </div>
+        <div id="demoPanel">
+          <label class="field"><span>演示场景</span>
+            <select id="demoScenario">
+              <option value="rest">静息 · 弱伪影</option>
+              <option value="moderate" selected>中等运动 · 默认</option>
+              <option value="strong">强运动 · 边界</option>
+            </select>
+          </label>
+          <p class="hint">内置合成信号（70 bpm + 运动伪影 + 同源 IMU），可零数据验证完整链路。PRD 仅供参考。</p>
+        </div>
+        <div id="uploadPanel" hidden>
+          <div class="drop" id="dropZone">
+            <div class="big">⇪</div>
+            <b>点击选择或拖拽文件到此处</b>
+            <small>支持 .npz / .csv / .json ｜ 上限 64 MB</small>
+            <input type="file" id="fileInput" accept=".npz,.csv,.json" hidden>
+          </div>
+          <div id="fileMeta"></div>
+          <p class="hint">npz 键：<span class="mono">ppg[, acc, gyro, reference, fs]</span>；CSV 列：<span class="mono">ppg, acc_x/y/z, gyro_x/y/z, reference</span>。</p>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>2 · 模型与参数</h2>
+        <label class="field"><span>模型预设</span>
+          <select id="preset">
+            <option value="lite" selected>lite · 推荐（5 残差 + 3 CRM）</option>
+            <option value="full">full · 复现最终数字（41 残差 + 3 CRM）</option>
+            <option value="no_imu">no_imu · 仅 PPG 单通道</option>
+          </select>
+        </label>
+        <div class="modelbadge" id="presetInfo">
+          <b>lite</b> · 测试集 PRD 46.37
+          <span class="sub">15.9 MB ｜ 5 残差 + 3 频域 CRM ｜ CPU 约 0.2 s / 30 s</span>
+        </div>
+        <label class="check"><input type="checkbox" id="autoNoImu" checked>
+          <span>无 ACC 时自动切换到 no_imu 单通道模型</span></label>
+        <label class="field" style="margin-top:11px"><span>采样率 fs (Hz)</span>
+          <input type="number" id="fsInput" min="0.5" max="10000" step="any" placeholder="留空：从 npz / JSON 读取，CSV 需填写">
+        </label>
+        <details class="advanced">
+          <summary>高级参数（算法默认值已标定）</summary>
+          <div class="inner">
+            <div class="grid2">
+              <label class="field"><span>α 收缩系数</span><input type="number" id="alpha" value="0.40" step="0.01" min="0" max="1.5"></label>
+              <label class="field"><span>CRM 融合权重</span><input type="number" id="crmWeight" value="0.15" step="0.01" min="0" max="1"></label>
+              <label class="field"><span>静息旁路阈值</span><input type="number" id="bypassRatio" value="0.05" step="0.01" min="0" max="1"></label>
+              <label class="field"><span>RLS taps</span><input type="number" id="taps" value="4" step="1" min="1" max="16"></label>
+              <label class="field"><span>RLS λ</span><input type="number" id="lam" value="0.995" step="0.001" min="0.8" max="1"></label>
+              <label class="field"><span>心率估计</span>
+                <select id="wantHr"><option value="1" selected>开启</option><option value="0">关闭（更快）</option></select>
+              </label>
+            </div>
+            <p class="hint">修改默认值只影响本次推理；α / λ / taps 若权重内记录有标定值会以权重为准。</p>
+          </div>
+        </details>
+      </section>
+
+      <button class="primary" id="runBtn">开始处理</button>
+      <button class="ghost" id="selfcheckBtn">运行端到端自检</button>
+
+      <section class="card">
+        <h2>最近记录</h2>
+        <div class="history-list" id="historyList"></div>
+      </section>
+    </aside>
+
+    <main class="content">
+      <div class="tabs" id="tabs">
+        <button class="tab active" data-tab="wave">三波形结果</button>
+        <button class="tab" data-tab="hr">心率曲线</button>
+        <button class="tab" data-tab="meta">质量与导出</button>
+        <button class="tab" data-tab="help">使用说明</button>
+      </div>
+
+      <div id="alert" class="alert" hidden>
+        <span id="alertIcon">!</span><span id="alertText"></span>
+        <button class="x" id="alertClose" aria-label="关闭">×</button>
+      </div>
+
+      <div id="loading" class="loading" hidden>
+        <span class="spinner"></span>
+        <div><b id="loadingTitle">正在处理…</b><div class="hint" id="loadingSub">首次加载模型可能需要 1–3 秒</div></div>
+      </div>
+
+      <div id="emptyState" class="empty">
+        <div class="inner">
+          <div class="glyph">⌁</div>
+          <h2>选择数据源，开始去伪影</h2>
+          <p>左侧可载入内置演示信号，或上传 <code>.npz</code> / <code>.csv</code> / <code>.json</code>。
+            处理后将显示 <b>① 原波形 ② 伪影波形 M̂ ③ 滤净波形</b>、心率、质量指标，并支持四种格式导出。</p>
+          <p style="margin-top:10px;color:var(--muted);font-size:12px">没有数据也可以直接点「开始处理」，默认跑中等运动演示。</p>
+        </div>
+      </div>
+
+      <div id="resultArea" hidden>
+        <div class="kpis">
+          <div class="kpi"><div class="label">心率中位</div><div class="value green" id="kpiHr">—</div><div class="sub" id="kpiHrSub">bpm</div></div>
+          <div class="kpi"><div class="label">伪影占比</div><div class="value purple" id="kpiRatio">—</div><div class="sub">std(M̂)/std(PPG)</div></div>
+          <div class="kpi"><div class="label">静息旁路</div><div class="value" id="kpiBypass">—</div><div class="sub">低于阈值直接透传</div></div>
+          <div class="kpi"><div class="label">输出 SNR</div><div class="value blue" id="kpiSnr">—</div><div class="sub">10·log10(var(clean)/var(resid))</div></div>
+          <div class="kpi"><div class="label">运行模式</div><div class="value" id="kpiMode" style="font-size:17px">—</div><div class="sub" id="kpiModeSub">IMU / 仅 ACC / 无 IMU</div></div>
+          <div class="kpi"><div class="label">处理耗时</div><div class="value warn" id="kpiTime">—</div><div class="sub" id="kpiTimeSub">CPU 推理</div></div>
+        </div>
+
+        <div class="warnings" id="warnings"></div>
+
+        <section class="panel" id="tab-wave">
+          <div class="card chart-card">
+            <div class="chart-head">
+              <div>
+                <h2>三波形对照</h2>
+                <p>滚轮缩放 · 拖拽平移 · 双击复位 · 悬停查看逐点数值</p>
+              </div>
+              <div class="chart-tools">
+                <div class="legend" id="seriesToggles"></div>
+                <button class="mini-btn" id="resetZoom">重置缩放</button>
+              </div>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="waveCanvas"></canvas>
+              <div class="tooltip" id="waveTip"></div>
+            </div>
+          </div>
+
+          <div class="two-col">
+            <div class="card" id="refCard">
+              <div class="section-title"><div><h2>参考真值对比</h2><p id="refSub">上传 reference / clean 后显示 PRD、Pearson 等</p></div></div>
+              <div id="refBody"><p class="hint">本次输入未提供参考波形。</p></div>
+            </div>
+            <div class="card">
+              <div class="section-title"><div><h2>输入摘要</h2><p>数据源 / 采样率 / 通道 / 模型</p></div></div>
+              <div id="inputSummary"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" id="tab-hr" hidden>
+          <div class="card chart-card">
+            <div class="chart-head">
+              <div><h2>逐窗心率</h2><p>8 s 窗 / 2 s 步进 · Viterbi 全局路径 · 频带 42–180 bpm</p></div>
+              <div class="chart-tools"><span class="badge blue" id="hrBadge">—</span></div>
+            </div>
+            <div class="chart-wrap hr">
+              <canvas id="hrCanvas"></canvas>
+              <div class="tooltip" id="hrTip"></div>
+            </div>
+          </div>
+          <div class="two-col">
+            <div class="card"><div class="section-title"><div><h2>心率统计</h2><p>由逐窗曲线汇总</p></div></div><div id="hrStats"></div></div>
+            <div class="card"><div class="section-title"><div><h2>说明</h2><p>如何解读心率结果</p></div></div>
+              <p class="hint">心率从最终滤净波形估计；无 IMU 时仍可用，但伪影波形不可估计。若窗口数 &lt; 3（信号短于 12 s），心率返回空值。</p>
+              <p class="hint">中位心率对孤立错误窗更稳健；逐窗曲线用于观察跟踪是否被步频/谐波带偏。</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" id="tab-meta" hidden>
+          <div class="card">
+            <div class="section-title"><div><h2>质量指标</h2><p>来自 PPGDenoiser 的 quality / meta</p></div></div>
+            <div class="quality-grid" id="qualityGrid"></div>
+          </div>
+          <div class="two-col">
+            <div class="card"><div class="section-title"><div><h2>输入与模式</h2><p>本次请求的完整参数</p></div></div><div id="inputTable"></div></div>
+            <div class="card"><div class="section-title"><div><h2>下载结果</h2><p>全量数据与可复用产物</p></div></div>
+              <div class="downloads" id="downloads"></div>
+              <p class="hint" style="margin-top:10px">npz 含 t / ppg_raw / artifact / ppg_prior / ppg_clean / hr_bpm / hr_t / reference；
+                csv 为逐采样点波形；png 为服务端渲染的三波形图；json 为元信息与指标。</p>
+            </div>
+          </div>
+          <div class="card">
+            <div class="section-title"><div><h2>返回 JSON</h2><p>result.meta / quality / hr 等</p></div>
+              <button class="mini-btn" id="copyJson">复制</button></div>
+            <pre class="code" id="metaPre">{}</pre>
+          </div>
+          <div class="card">
+            <div class="section-title"><div><h2>API 调用示例</h2><p>可直接给软件/脚本复用本次请求</p></div>
+              <button class="mini-btn" id="copyCurl">复制 curl</button></div>
+            <pre class="code" id="curlBlock"></pre>
+          </div>
+        </section>
+      </div>
+
+      <section class="help" id="helpPanel" hidden>
+        <div class="card">
+          <h2>使用说明</h2>
+          <p>本工作台是仓库软件接口 <span class="pill">PPGDenoiser</span> 的图形前端。后端调用训练好的 RLS + 残差 U-Net + 频域 CRM 集成模型，
+            输出 <b>① 原波形 ② 伪影波形 M̂ ③ 滤净波形</b>，并给出心率、质量指标和可下载产物。</p>
+          <h3>1. 三步跑通</h3>
+          <ul>
+            <li><b>选数据</b>：左侧「演示数据」选场景，或「上传文件」选择 npz/csv/json。</li>
+            <li><b>选模型</b>：默认 <span class="pill">lite</span>（15.9 MB，测试 PRD 46.37）；复现最终数字选 <span class="pill">full</span>；仅 PPG 用 <span class="pill">no_imu</span>。</li>
+            <li><b>开始处理</b>：结果页可缩放三波形、查看心率曲线、下载 npz/json/csv/png。</li>
+          </ul>
+          <h3>2. 输入格式</h3>
+          <table class="table">
+            <tr><th>格式</th><th>必需 / 可选字段</th><th>说明</th></tr>
+            <tr><td>NPZ</td><td><span class="pill">ppg</span> / <span class="pill">acc</span> <span class="pill">gyro</span> <span class="pill">reference</span> <span class="pill">clean</span> <span class="pill">fs</span></td>
+              <td>PPG 形状 (N,) 或 (n_lead,N)；ACC/Gyro 形状 (3,N)/(N,3)/(N,)；fs 标量。</td></tr>
+            <tr><td>CSV</td><td><span class="pill">ppg</span> / <span class="pill">acc_x,y,z</span> <span class="pill">gyro_x,y,z</span> <span class="pill">reference</span></td>
+              <td>首行列名；CSV 不含采样率，必须在左侧填写 fs（例如 100 / 125 / 256）。</td></tr>
+            <tr><td>JSON</td><td><span class="pill">ppg</span> / <span class="pill">acc</span> <span class="pill">gyro</span> <span class="pill">reference</span> <span class="pill">fs</span></td>
+              <td>数组形式；也可直接 POST 到 <span class="pill">/api/denoise</span>。</td></tr>
+          </table>
+          <div class="callout">任意长度、任意采样率均可（内部重采样到 100 Hz）。&gt;30 s 自动 30 s 窗 / 15 s 步进重叠相加；&lt;1 s 拒绝；NaN 自动插值。</div>
+          <h3>3. 输出怎么读</h3>
+          <ul>
+            <li><b>心率中位</b>：逐 8 s 窗心率的 median，异常窗更稳健。无 3 个以上窗时为 —。</li>
+            <li><b>伪影占比</b>：std(M̂)/std(PPG)。低于「静息旁路阈值」(默认 0.05) 时输出原波形，避免过度处理。</li>
+            <li><b>输出 SNR</b>：10·log10(var(clean)/var(PPG−clean))；旁路或残差≈0 时为 —。</li>
+            <li><b>模式</b>：<span class="pill">imu</span> = PPG+ACC+Gyro（最佳）；<span class="pill">imu_acc</span> = 仅 ACC；<span class="pill">no_imu</span> = 仅 PPG（伪影波形恒 0）。</li>
+          </ul>
+          <h3>4. 高级参数</h3>
+          <table class="table">
+            <tr><th>参数</th><th>默认</th><th>作用</th></tr>
+            <tr><td>α</td><td>0.40</td><td>物理先验 <span class="pill">PPG − α·M̂</span> 的收缩系数（CIME 标定）。</td></tr>
+            <tr><td>CRM 权重</td><td>0.15</td><td>时域残差集成与频域 CRM 的融合比例。</td></tr>
+            <tr><td>旁路阈值</td><td>0.05</td><td>伪影占比低于该值直接透传原波形。</td></tr>
+            <tr><td>taps / λ</td><td>4 / 0.995</td><td>RLS 参考时延与遗忘因子。</td></tr>
+            <tr><td>want_hr</td><td>开</td><td>关闭可显著加速（只出波形）。</td></tr>
+          </table>
+          <h3>5. REST API</h3>
+          <pre class="code"># 健康检查
+curl http://127.0.0.1:8000/api/health
+
+# 演示数据
+curl -X POST http://127.0.0.1:8000/api/denoise \
+  -F source=demo -F scenario=moderate -F preset=lite -F want_hr=1
+
+# 上传文件
+curl -X POST http://127.0.0.1:8000/api/denoise \
+  -F source=file -F file=@my.npz -F fs=100 -F preset=lite
+
+# 纯 JSON（无需 IMU 时自动切换 no_imu）
+curl -X POST http://127.0.0.1:8000/api/denoise \
+  -H 'Content-Type: application/json' \
+  -d '{"ppg":[0.1,0.2,...],"fs":100,"preset":"lite"}'
+
+# 下载：/api/download/&lt;run_id&gt;/{npz,json,csv,png}
+curl -OJ http://127.0.0.1:8000/api/download/&lt;run_id&gt;/npz</pre>
+          <h3>6. 已知边界</h3>
+          <ul>
+            <li>强伪影（κ≫1）与中高强度腕部运动是主要失效区；八度/谐波锁定仅凭 PPG+IMU 不可修。</li>
+            <li>波形真值仅 CIME 一个数据集；跨设备波形质量无法定量，只能用心率间接验证。</li>
+            <li>演示信号为合成数据，PRD 不代表真实性能；真实 CIME 测试集 PRD 为 46.57（full）/ 46.37（lite）。</li>
+          </ul>
+          <h3>7. 环境与数据</h3>
+          <div id="envInfo" class="hint">读取中…</div>
+        </div>
+      </section>
+
+      <div class="footer">
+        <b>PPG 运动伪影去除</b> · 第十一届全国生物医学工程创新设计大赛 · 赛道三<br>
+        物理先验为主干 · 网络只做残差 · 决策层负责跨域可靠性
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ------------------------------------------------------------------ */
+/* 基础工具                                                            */
+/* ------------------------------------------------------------------ */
+const $ = (s, root = document) => root.querySelector(s);
+const $$ = (s, root = document) => Array.from(root.querySelectorAll(s));
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const fmt = (v, d = 3) => (v === null || v === undefined || !Number.isFinite(+v)) ? "—" : (+v).toFixed(d);
+const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+const state = {
+  source: "demo",
+  file: null,
+  payload: null,
+  info: null,
+  tab: "wave",
+  visible: new Set(["ppg_raw", "artifact", "ppg_clean", "reference"]),
+};
+
+const SERIES_META = [
+  { key: "ppg_raw", label: "① 原波形", color: "#4f8cff" },
+  { key: "artifact", label: "② 伪影波形 M̂", color: "#ff5d73" },
+  { key: "ppg_prior", label: "物理先验", color: "#a78bfa", off: true },
+  { key: "ppg_clean", label: "③ 滤净波形", color: "#2ee6a8" },
+  { key: "reference", label: "参考真值", color: "#94a3b8", dash: [6, 4] },
+];
+
+/* ------------------------------------------------------------------ */
+/* 提示 / 加载                                                         */
+/* ------------------------------------------------------------------ */
+let alertTimer = null;
+function showAlert(msg, type = "error", timeout = 0) {
+  const box = $("#alert");
+  $("#alertText").textContent = msg;
+  box.className = "alert " + type;
+  box.hidden = false;
+  $("#alertIcon").textContent = type === "success" ? "✓" : type === "warn" ? "!" : "×";
+  clearTimeout(alertTimer);
+  if (timeout) alertTimer = setTimeout(() => box.hidden = true, timeout);
+}
+function hideAlert() { $("#alert").hidden = true; }
+
+function setLoading(on, title, sub) {
+  $("#loading").hidden = !on;
+  $("#runBtn").disabled = on;
+  $("#selfcheckBtn").disabled = on;
+  if (title) $("#loadingTitle").textContent = title;
+  if (sub) $("#loadingSub").textContent = sub;
+}
+
+async function api(url, opts = {}) {
+  let res;
+  try { res = await fetch(url, opts); }
+  catch (e) { throw new Error("无法连接后端服务，请确认 python webapp/server.py 正在运行"); }
+  let data = null;
+  try { data = await res.json(); } catch (e) { /* ignore */ }
+  if (!res.ok || (data && data.ok === false)) {
+    throw new Error((data && data.error) || ("HTTP " + res.status));
+  }
+  return data;
+}
+
+/* ------------------------------------------------------------------ */
+/* 图表：Canvas 折线图（缩放 / 平移 / 悬停）                            */
+/* ------------------------------------------------------------------ */
+class LineChart {
+  constructor(canvas, tip, opts = {}) {
+    this.cv = canvas;
+    this.ctx = canvas.getContext("2d");
+    this.tip = tip;
+    this.opts = opts;
+    this.pad = opts.pad || { l: 62, r: 18, t: 18, b: 34 };
+    this.data = null;
+    this.series = [];
+    this.hidden = new Set();
+    this.xmin = 0; this.xmax = 1;
+    this.hoverIdx = -1;
+    this.drag = null;
+    this.w = 0; this.h = 0; this.dpr = 1;
+    this.resize = this.resize.bind(this);
+    new ResizeObserver(this.resize).observe(canvas.parentElement);
+    canvas.addEventListener("pointermove", (e) => this.onMove(e));
+    canvas.addEventListener("pointerleave", () => { this.hoverIdx = -1; this.tip.classList.remove("show"); this.render(); });
+    canvas.addEventListener("pointerdown", (e) => this.onDown(e));
+    canvas.addEventListener("pointerup", (e) => this.onUp(e));
+    canvas.addEventListener("pointercancel", (e) => this.onUp(e));
+    canvas.addEventListener("wheel", (e) => this.onWheel(e), { passive: false });
+    canvas.addEventListener("dblclick", () => this.reset());
+    this.resize();
+  }
+  setData(data) {
+    this.data = data;
+    const t = data.t || [];
+    this.xmin = t.length ? t[0] : 0;
+    this.xmax = t.length ? t[t.length - 1] : 1;
+    this.hoverIdx = -1;
+    this.render();
+  }
+  setSeries(series) { this.series = series; this.render(); }
+  setHidden(hidden) { this.hidden = hidden; this.render(); }
+  reset() {
+    if (!this.data) return;
+    const t = this.data.t;
+    this.xmin = t[0]; this.xmax = t[t.length - 1] || 1;
+    this.render();
+  }
+  resize() {
+    const rect = this.cv.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    this.w = rect.width; this.h = rect.height;
+    this.dpr = window.devicePixelRatio || 1;
+    this.cv.width = Math.round(this.w * this.dpr);
+    this.cv.height = Math.round(this.h * this.dpr);
+    this.render();
+  }
+  plotBox() {
+    const p = this.pad;
+    return { x: p.l, y: p.t, w: Math.max(10, this.w - p.l - p.r), h: Math.max(10, this.h - p.t - p.b) };
+  }
+  xScale(t) {
+    const b = this.plotBox();
+    return b.x + (t - this.xmin) / Math.max(1e-9, this.xmax - this.xmin) * b.w;
+  }
+  visibleSeries() {
+    if (!this.data) return [];
+    return this.series.filter(s => !this.hidden.has(s.key) && Array.isArray(this.data[s.key]));
+  }
+  render() {
+    if (!this.w || !this.h) return;
+    const ctx = this.ctx;
+    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    ctx.clearRect(0, 0, this.w, this.h);
+    const css = getComputedStyle(document.documentElement);
+    const text = css.getPropertyValue("--text").trim() || "#e8eefb";
+    const muted = css.getPropertyValue("--muted").trim() || "#8fa0bd";
+    const grid = css.getPropertyValue("--grid").trim() || "rgba(143,160,189,.14)";
+    const accent2 = css.getPropertyValue("--accent2").trim() || "#4f8cff";
+    const b = this.plotBox();
+
+    if (!this.data || !this.data.t || this.data.t.length < 2) {
+      ctx.fillStyle = muted; ctx.font = "12px system-ui"; ctx.textAlign = "center";
+      ctx.fillText("暂无可绘制数据", this.w / 2, this.h / 2);
+      return;
+    }
+    const t = this.data.t;
+    const vis = this.visibleSeries();
+
+    // y 范围（仅当前 x 窗口内）
+    let ymin = Infinity, ymax = -Infinity;
+    for (const s of vis) {
+      const arr = this.data[s.key];
+      for (let i = 0; i < t.length; i++) {
+        if (t[i] < this.xmin || t[i] > this.xmax) continue;
+        const v = arr[i];
+        if (Number.isFinite(v)) { if (v < ymin) ymin = v; if (v > ymax) ymax = v; }
+      }
+    }
+    if (!Number.isFinite(ymin) || !Number.isFinite(ymax)) { ymin = -1; ymax = 1; }
+    if (ymax - ymin < 1e-9) { ymin -= 1; ymax += 1; }
+    const padY = (ymax - ymin) * 0.08;
+    ymin -= padY; ymax += padY;
+    const yScale = (v) => b.y + b.h - (v - ymin) / (ymax - ymin) * b.h;
+
+    // 网格 + 坐标
+    ctx.font = "11px ui-monospace, Menlo, monospace";
+    ctx.textAlign = "right"; ctx.textBaseline = "middle";
+    const yStep = niceStep(ymax - ymin, 5);
+    const yStart = Math.ceil(ymin / yStep) * yStep;
+    for (let v = yStart; v <= ymax + 1e-9; v += yStep) {
+      const y = yScale(v);
+      ctx.strokeStyle = grid; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(b.x, y); ctx.lineTo(b.x + b.w, y); ctx.stroke();
+      ctx.fillStyle = muted; ctx.fillText(formatTick(v, yStep), b.x - 9, y);
+    }
+    ctx.textAlign = "center"; ctx.textBaseline = "top";
+    const xStep = niceStep(this.xmax - this.xmin, Math.max(3, Math.floor(b.w / 90)));
+    const xStart = Math.ceil(this.xmin / xStep) * xStep;
+    for (let v = xStart; v <= this.xmax + 1e-9; v += xStep) {
+      const x = this.xScale(v);
+      ctx.strokeStyle = grid;
+      ctx.beginPath(); ctx.moveTo(x, b.y); ctx.lineTo(x, b.y + b.h); ctx.stroke();
+      ctx.fillStyle = muted; ctx.fillText(formatTime(v, xStep), x, b.y + b.h + 9);
+    }
+
+    // 轴
+    ctx.strokeStyle = css.getPropertyValue("--border2").trim() || "#2d4066";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(b.x, b.y); ctx.lineTo(b.x, b.y + b.h); ctx.lineTo(b.x + b.w, b.y + b.h);
+    ctx.stroke();
+    if (this.opts.yLabel) {
+      ctx.save();
+      ctx.translate(13, b.y + b.h / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillStyle = muted; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.font = "10px system-ui";
+      ctx.fillText(this.opts.yLabel, 0, 0);
+      ctx.restore();
+    }
+
+    // 曲线
+    ctx.save();
+    ctx.beginPath(); ctx.rect(b.x, b.y, b.w, b.h); ctx.clip();
+    for (const s of vis) {
+      const arr = this.data[s.key];
+      if (!arr) continue;
+      ctx.beginPath();
+      let pen = false;
+      for (let i = 0; i < t.length; i++) {
+        if (t[i] < this.xmin - 1e-9 || t[i] > this.xmax + 1e-9) { pen = false; continue; }
+        const v = arr[i];
+        if (!Number.isFinite(v)) { pen = false; continue; }
+        const x = this.xScale(t[i]), y = yScale(v);
+        if (!pen) { ctx.moveTo(x, y); pen = true; } else ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = s.color;
+      ctx.lineWidth = s.width || 1.5;
+      ctx.setLineDash(s.dash || []);
+      ctx.lineJoin = "round";
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    // 中位线（心率图）
+    if (this.opts.hline !== undefined && this.opts.hline !== null && this.opts.hline >= ymin && this.opts.hline <= ymax) {
+      const y = yScale(this.opts.hline);
+      ctx.beginPath(); ctx.moveTo(b.x, y); ctx.lineTo(b.x + b.w, y);
+      ctx.strokeStyle = "rgba(245,185,66,.55)"; ctx.lineWidth = 1; ctx.setLineDash([5, 5]); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = "rgba(245,185,66,.9)"; ctx.textAlign = "left"; ctx.textBaseline = "bottom";
+      ctx.font = "10px ui-monospace, Menlo, monospace";
+      ctx.fillText("median " + fmt(this.opts.hline, 1), b.x + 6, y - 3);
+    }
+    ctx.restore();
+
+    // 悬停
+    if (this.hoverIdx >= 0 && this.hoverIdx < t.length) {
+      const x = this.xScale(t[this.hoverIdx]);
+      ctx.strokeStyle = "rgba(148,163,184,.6)"; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+      ctx.beginPath(); ctx.moveTo(x, b.y); ctx.lineTo(x, b.y + b.h); ctx.stroke();
+      ctx.setLineDash([]);
+      for (const s of vis) {
+        const v = this.data[s.key][this.hoverIdx];
+        if (!Number.isFinite(v)) continue;
+        const y = yScale(v);
+        ctx.beginPath(); ctx.arc(x, y, 3.2, 0, Math.PI * 2);
+        ctx.fillStyle = s.color; ctx.fill();
+        ctx.strokeStyle = "rgba(0,0,0,.35)"; ctx.lineWidth = 1; ctx.stroke();
+      }
+      this.updateTip(this.hoverIdx, x, t, vis);
+    }
+  }
+  updateTip(i, x, t, vis) {
+    if (!this.tip) return;
+    const rows = vis.map(s => {
+      const v = this.data[s.key][i];
+      return `<div class="tt-row"><span class="n"><span class="sw" style="background:${s.color}"></span>${esc(s.label)}</span><b>${fmt(v, 3)}</b></div>`;
+    }).join("");
+    this.tip.innerHTML = `<div class="tt-time">t = ${fmt(t[i], 2)} s</div>${rows}`;
+    const wrapW = this.cv.clientWidth;
+    let left = x + 14;
+    if (left + 210 > wrapW) left = x - 220;
+    if (left < 4) left = 4;
+    this.tip.style.left = left + "px";
+    this.tip.style.top = "12px";
+    this.tip.classList.add("show");
+  }
+  nearestIndex(clientX) {
+    if (!this.data) return -1;
+    const rect = this.cv.getBoundingClientRect();
+    const b = this.plotBox();
+    if (clientX < rect.left + b.x || clientX > rect.left + b.x + b.w) return -1;
+    const t = this.data.t;
+    const target = this.xmin + (clientX - rect.left - b.x) / b.w * (this.xmax - this.xmin);
+    let lo = 0, hi = t.length - 1;
+    while (lo < hi) { const mid = (lo + hi) >> 1; if (t[mid] < target) lo = mid + 1; else hi = mid; }
+    if (lo > 0 && Math.abs(t[lo - 1] - target) < Math.abs(t[lo] - target)) lo--;
+    return lo;
+  }
+  onMove(e) {
+    if (this.drag) {
+      const dx = e.clientX - this.drag.x;
+      const span = this.drag.xmax - this.drag.xmin;
+      const shift = -dx / this.plotBox().w * span;
+      this.xmin = this.drag.xmin + shift;
+      this.xmax = this.drag.xmax + shift;
+      this.clampRange();
+      this.render();
+      return;
+    }
+    this.hoverIdx = this.nearestIndex(e.clientX);
+    this.render();
+  }
+  onDown(e) {
+    if (e.button !== 0) return;
+    this.drag = { x: e.clientX, xmin: this.xmin, xmax: this.xmax };
+    this.cv.setPointerCapture?.(e.pointerId);
+    this.cv.style.cursor = "grabbing";
+  }
+  onUp(e) {
+    this.drag = null;
+    this.cv.style.cursor = "crosshair";
+  }
+  onWheel(e) {
+    if (!this.data) return;
+    e.preventDefault();
+    const b = this.plotBox();
+    const rect = this.cv.getBoundingClientRect();
+    const px = clamp((e.clientX - rect.left - b.x) / b.w, 0, 1);
+    const center = this.xmin + px * (this.xmax - this.xmin);
+    const factor = e.deltaY > 0 ? 1.18 : 0.85;
+    const fullSpan = this.data.t[this.data.t.length - 1] - this.data.t[0] || 1;
+    const minSpan = Math.max(0.25, fullSpan / 600);
+    let span = clamp((this.xmax - this.xmin) * factor, minSpan, fullSpan);
+    this.xmin = center - px * span;
+    this.xmax = this.xmin + span;
+    this.clampRange();
+    this.render();
+  }
+  clampRange() {
+    const t = this.data.t;
+    const t0 = t[0], t1 = t[t.length - 1];
+    const span = this.xmax - this.xmin;
+    if (this.xmin < t0) { this.xmin = t0; this.xmax = t0 + span; }
+    if (this.xmax > t1) { this.xmax = t1; this.xmin = t1 - span; }
+    if (this.xmin < t0) this.xmin = t0;
+    if (this.xmax > t1) this.xmax = t1;
+  }
+}
+
+function niceStep(range, count) {
+  const raw = Math.max(1e-12, range / Math.max(1, count));
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const n = raw / mag;
+  let m = 10;
+  if (n <= 1) m = 1; else if (n <= 2) m = 2; else if (n <= 5) m = 5;
+  return m * mag;
+}
+function formatTick(v, step) {
+  const d = step >= 1 ? 0 : step >= 0.1 ? 1 : step >= 0.01 ? 2 : 3;
+  return (+v).toFixed(d);
+}
+function formatTime(v, step) {
+  if (step >= 1) return (+v).toFixed(0) + "s";
+  if (step >= 0.1) return (+v).toFixed(1) + "s";
+  return (+v).toFixed(2) + "s";
+}
+
+let waveChart = null, hrChart = null;
+
+/* ------------------------------------------------------------------ */
+/* 初始化                                                              */
+/* ------------------------------------------------------------------ */
+document.addEventListener("DOMContentLoaded", async () => {
+  initTheme();
+  bindUI();
+  waveChart = new LineChart($("#waveCanvas"), $("#waveTip"),
+    { pad: { l: 66, r: 18, t: 18, b: 36 }, yLabel: "Amplitude (a.u.)" });
+  hrChart = new LineChart($("#hrCanvas"), $("#hrTip"),
+    { pad: { l: 54, r: 18, t: 18, b: 36 }, yLabel: "HR (bpm)" });
+  await Promise.all([loadInfo(), refreshHealth()]);
+  renderHistory();
+  renderVisibility();
+});
+
+
+/* 退出应用（无控制台打包版没有 Ctrl+C；开发模式会关闭本地服务） */
+function bindQuit() {
+  const btn = $("#quitBtn");
+  if (!btn) return;
+  btn.addEventListener("click", async () => {
+    if (!confirm("退出 PPG 工作台？\n\n退出后网页将无法继续使用（重新打开 exe 即可再次启动）。")) return;
+    try { await api("/api/shutdown", { method: "POST" }); } catch (e) { /* 进程退出时请求可能中断 */ }
+    document.body.innerHTML = '<div style="display:flex;height:100vh;align-items:center;justify-content:center;'
+      + 'font-family:system-ui;color:#8fa0bd;background:#0b1220">服务已退出，可以关闭本页面。</div>';
+  });
+}
+
+function initTheme() {
+  const saved = localStorage.getItem("ppg_theme");
+  if (saved) document.documentElement.dataset.theme = saved;
+  bindQuit();
+  $("#themeBtn").addEventListener("click", () => {
+    const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+    document.documentElement.dataset.theme = next;
+    localStorage.setItem("ppg_theme", next);
+    if (state.payload) { waveChart.render(); hrChart.render(); }
+  });
+}
+
+function bindUI() {
+  // 数据源切换
+  $$("#sourceTabs button").forEach(btn => btn.addEventListener("click", () => {
+    state.source = btn.dataset.source;
+    $$("#sourceTabs button").forEach(b => b.classList.toggle("active", b === btn));
+    $("#demoPanel").hidden = state.source !== "demo";
+    $("#uploadPanel").hidden = state.source !== "file";
+  }));
+
+  // 文件选择 / 拖拽
+  const drop = $("#dropZone"), input = $("#fileInput");
+  drop.addEventListener("click", () => input.click());
+  input.addEventListener("change", () => setFile(input.files[0]));
+  ["dragenter", "dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("drag"); }));
+  ["dragleave", "drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("drag"); }));
+  drop.addEventListener("drop", e => { if (e.dataTransfer.files.length) setFile(e.dataTransfer.files[0]); });
+
+  // 预设信息
+  $("#preset").addEventListener("change", updatePresetInfo);
+
+  // 运行
+  $("#runBtn").addEventListener("click", () => runDenoise());
+  $("#selfcheckBtn").addEventListener("click", runSelfcheck);
+
+  // tabs
+  $$("#tabs .tab").forEach(btn => btn.addEventListener("click", () => {
+    state.tab = btn.dataset.tab;
+    $$("#tabs .tab").forEach(b => b.classList.toggle("active", b === btn));
+    renderVisibility();
+    if (state.tab === "wave" && waveChart) waveChart.render();
+    if (state.tab === "hr" && hrChart) hrChart.render();
+  }));
+
+  // 提示关闭
+  $("#alertClose").addEventListener("click", hideAlert);
+
+  // 图表
+  $("#resetZoom").addEventListener("click", () => waveChart.reset());
+
+  // 复制
+  $("#copyJson").addEventListener("click", () => copyText($("#metaPre").textContent, "JSON 已复制"));
+  $("#copyCurl").addEventListener("click", () => copyText($("#curlBlock").textContent, "curl 已复制"));
+
+  // 下载按钮（事件委托）
+  $("#downloads").addEventListener("click", e => {
+    const a = e.target.closest("a[data-kind]");
+    if (!a || !state.payload) return;
+    e.preventDefault();
+    const kind = a.dataset.kind;
+    const url = state.payload.downloads && state.payload.downloads[kind];
+    if (url) window.location.href = url;
+  });
+
+  // 历史
+  $("#historyList").addEventListener("click", e => {
+    const item = e.target.closest("[data-run-id]");
+    if (!item) return;
+    loadRun(item.dataset.runId);
+  });
+
+  window.addEventListener("resize", () => { if (state.payload) { waveChart.render(); hrChart.render(); } });
+}
+
+function setFile(file) {
+  if (!file) return;
+  const ok = /\.(npz|csv|json)$/i.test(file.name);
+  if (!ok) { showAlert("仅支持 .npz / .csv / .json 文件", "error", 5000); return; }
+  state.file = file;
+  $("#fileMeta").innerHTML = `<div class="filemeta"><span class="name">📄 ${esc(file.name)}</span>
+    <span class="mono" style="color:var(--muted)">${(file.size / 1024).toFixed(1)} KB</span>
+    <button class="x" id="clearFile" title="移除">×</button></div>`;
+  $("#clearFile").addEventListener("click", (e) => {
+    e.stopPropagation();
+    state.file = null; $("#fileMeta").innerHTML = ""; $("#fileInput").value = "";
+  });
+  if (!$("#fsInput").value && !/\.npz$/i.test(file.name) && !/\.json$/i.test(file.name)) {
+    $("#fsInput").placeholder = "CSV 需填写采样率，例如 100";
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* 信息 / 健康检查                                                     */
+/* ------------------------------------------------------------------ */
+async function loadInfo() {
+  try {
+    const j = await api("/api/info");
+    state.info = j;
+    updatePresetInfo();
+    const ds = (j.datasets || []).map(d => `${d.name} (${d.files} files, ${(d.bytes / 1048576).toFixed(0)} MB)`).join("、") || "未找到 datasets/ 目录";
+    $("#envInfo").innerHTML = `模型目录 <span class="pill">models/ppg_denoise_v1</span>；上传上限 ${j.limits.max_upload_mb} MB；
+      模型原生采样率 ${j.limits.fs_model} Hz；输入上限 ${j.limits.max_input_samples.toLocaleString()} 点。<br>
+      已检测数据集：${esc(ds)}。`;
+  } catch (e) { console.warn(e); }
+}
+
+function updatePresetInfo() {
+  const p = $("#preset").value;
+  const info = state.info && state.info.presets && state.info.presets[p];
+  if (!info) return;
+  const prd = info.expected_test_prd ? `测试集 PRD ${info.expected_test_prd}` : "无波形 PRD（仅心率路径）";
+  const mb = (info.total_bytes / 1048576).toFixed(1);
+  const parts = [];
+  if (info.n_residual) parts.push(info.n_residual + " 残差");
+  if (info.n_crm) parts.push(info.n_crm + " CRM");
+  $("#presetInfo").innerHTML = `<b>${esc(p)}</b> · ${prd}
+    <span class="sub">${mb} MB ｜ ${parts.join(" + ") || "—"} ｜ ${esc(info.note || "")}</span>`;
+}
+
+async function refreshHealth() {
+  try {
+    const j = await api("/api/health");
+    $("#healthChip").className = "chip ok";
+    $("#healthText").textContent = "服务在线 · " + (j.models_loaded.length ? "模型已加载" : "待首次加载");
+    $("#modelChip").className = "chip ok";
+    $("#modelText").textContent = j.models_loaded.length ? "已加载 " + j.models_loaded.join(" / ") : "CPU · 按需加载";
+  } catch (e) {
+    $("#healthChip").className = "chip bad";
+    $("#healthText").textContent = "后端未连接";
+    $("#modelChip").className = "chip bad";
+    $("#modelText").textContent = "无法加载模型";
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* 运行推理                                                            */
+/* ------------------------------------------------------------------ */
+async function runDenoise(silent = false) {
+  hideAlert();
+  if (state.source === "file" && !state.file) {
+    showAlert("请先选择要上传的文件，或切换到演示数据", "warn", 5000);
+    return;
+  }
+  const fd = new FormData();
+  fd.append("source", state.source);
+  if (state.source === "demo") fd.append("scenario", $("#demoScenario").value);
+  if (state.source === "file") fd.append("file", state.file);
+  fd.append("preset", $("#preset").value);
+  fd.append("auto_no_imu", $("#autoNoImu").checked ? "1" : "0");
+  const fs = $("#fsInput").value.trim();
+  if (fs) fd.append("fs", fs);
+  fd.append("alpha", $("#alpha").value);
+  fd.append("crm_weight", $("#crmWeight").value);
+  fd.append("bypass_ratio", $("#bypassRatio").value);
+  fd.append("taps", $("#taps").value);
+  fd.append("lam", $("#lam").value);
+  fd.append("want_hr", $("#wantHr").value);
+
+  setLoading(true, "正在处理…", "RLS 物理先验 → 残差 U-Net 集成 → 频域 CRM 融合");
+  try {
+    const t0 = performance.now();
+    const j = await api("/api/denoise", { method: "POST", body: fd });
+    const wall = ((performance.now() - t0) / 1000).toFixed(2);
+    state.tab = "wave";
+    $$("#tabs .tab").forEach(b => b.classList.toggle("active", b.dataset.tab === "wave"));
+    renderResult(j);
+    addHistory(j);
+    await refreshHealth();
+    if (!silent) {
+      const hr = j.result.hr_median == null ? "心率 —" : "心率 " + j.result.hr_median.toFixed(1) + " bpm";
+      showAlert(`处理完成：${hr} ｜ 模式 ${j.result.meta.mode} ｜ 端到端 ${wall} s`, "success", 4500);
+    }
+  } catch (e) {
+    showAlert(e.message || String(e), "error");
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function runSelfcheck() {
+  hideAlert();
+  setLoading(true, "正在自检…", "合成中等运动样例 → 完整推理 → 计算 PRD");
+  try {
+    const j = await api("/api/selfcheck", { method: "POST" });
+    showAlert(`自检通过：PRD ${fmt(j.prd_raw, 2)} → ${fmt(j.prd_clean, 2)} ｜ 心率 ${fmt(j.hr_median, 1)} bpm ｜ ${fmt(j.elapsed_s, 2)} s。${j.note || ""}`,
+      "success", 9000);
+    await refreshHealth();
+  } catch (e) {
+    showAlert("自检失败：" + (e.message || e), "error");
+  } finally {
+    setLoading(false);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* 渲染结果                                                            */
+/* ------------------------------------------------------------------ */
+function renderResult(j) {
+  state.payload = j;
+  const r = j.result, meta = r.meta || {}, q = r.quality || {};
+  const inp = j.input || {};
+
+  // KPI
+  $("#kpiHr").textContent = r.hr_median == null ? "—" : fmt(r.hr_median, 1);
+  $("#kpiHrSub").textContent = r.hr_median == null ? "窗口不足或未开启" : "bpm · " + (r.hr_bpm || []).length + " 窗";
+  $("#kpiRatio").textContent = q.artifact_ratio == null ? "—" : (q.artifact_ratio * 100).toFixed(1) + "%";
+  const by = q.bypass_applied;
+  $("#kpiBypass").textContent = by ? "已旁路" : "未触发";
+  $("#kpiBypass").className = "value " + (by ? "warn" : "green");
+  $("#kpiSnr").textContent = q.snr_improve_db == null ? "—" : fmt(q.snr_improve_db, 2);
+  if (q.snr_improve_db != null) $("#kpiSnr").innerHTML = fmt(q.snr_improve_db, 2) + '<small>dB</small>';
+  const modeMap = { imu: "IMU 完整", imu_acc: "仅 ACC", no_imu: "无 IMU" };
+  $("#kpiMode").textContent = modeMap[meta.mode] || meta.mode || "—";
+  $("#kpiMode").style.fontSize = "17px";
+  $("#kpiModeSub").textContent = `预设 ${inp.preset_effective || meta.preset || "—"} · ${meta.n_residual || 0}+${meta.n_crm || 0} 模型`;
+  $("#kpiTime").textContent = fmt(meta.elapsed_s, 2);
+  $("#kpiTimeSub").textContent = "CPU 推理";
+
+  // 警告
+  const warnings = j.warnings || [];
+  $("#warnings").innerHTML = warnings.map(w => `<div class="alert warn"><span>!</span><span>${esc(w)}</span></div>`).join("");
+
+  // 序列
+  const hasRef = Array.isArray(j.series.reference);
+  $("#seriesToggles").innerHTML = SERIES_META.filter(s => s.key !== "reference" || hasRef).map(s => {
+    const on = state.visible.has(s.key) && !s.off;
+    return `<button data-key="${s.key}" class="${on ? "" : "off"}"><span class="swatch" style="color:${s.color};background:${s.color}"></span>${esc(s.label)}</button>`;
+  }).join("");
+  $$("#seriesToggles button").forEach(btn => btn.addEventListener("click", () => {
+    const k = btn.dataset.key;
+    if (state.visible.has(k)) state.visible.delete(k); else state.visible.add(k);
+    btn.classList.toggle("off", !state.visible.has(k));
+    waveChart.setHidden(new Set(SERIES_META.filter(s => !state.visible.has(s.key)).map(s => s.key)));
+  }));
+  if (hasRef) state.visible.add("reference");
+  const series = SERIES_META.filter(s => s.key !== "reference" || hasRef).map(s => ({ ...s }));
+  waveChart.setSeries(series);
+  waveChart.setHidden(new Set(SERIES_META.filter(s => !state.visible.has(s.key)).map(s => s.key)));
+  waveChart.setData(j.series);
+
+  // 参考指标
+  renderReference(j);
+
+  // 输入摘要
+  $("#inputSummary").innerHTML = tableHTML([
+    ["数据源", inp.source === "demo" ? ("演示 · " + (inp.description || inp.scenario || "")) : (inp.filename || "上传文件")],
+    ["采样率", fmt(inp.fs, 1) + " Hz（模型 100 Hz）"],
+    ["长度", `${inp.n.toLocaleString()} 点 · ${fmt(inp.duration_s, 1)} s`],
+    ["通道", `ACC ${inp.has_acc ? "✓" : "—"} · Gyro ${inp.has_gyro ? "✓" : "—"} · 参考 ${inp.has_reference ? "✓" : "—"}`],
+    ["模型", `${inp.preset_effective || meta.preset} · ${meta.n_residual}+${meta.n_crm} 成员${inp.auto_switched ? "（自动 no_imu）" : ""}`],
+    ["耗时", fmt(meta.elapsed_s, 3) + " s"],
+  ]);
+
+  // 心率
+  renderHR(j);
+
+  // 质量 / 元信息
+  const qitems = [
+    ["artifact_ratio", fmt(q.artifact_ratio, 4), ""],
+    ["bypass_applied", q.bypass_applied ? "True" : "False", ""],
+    ["snr_improve_db", q.snr_improve_db == null ? "—" : fmt(q.snr_improve_db, 2), "dB"],
+    ["input_std", fmt(q.input_std, 4), ""],
+    ["mode", meta.mode || "—", ""],
+    ["elapsed", fmt(meta.elapsed_s, 3), "s"],
+    ["n_residual", meta.n_residual ?? "—", ""],
+    ["n_crm", meta.n_crm ?? "—", ""],
+    ["alpha", fmt(meta.alpha, 2), ""],
+    ["crm_weight", fmt(meta.crm_weight, 2), ""],
+    ["fs_in", fmt(meta.fs_in, 1), "Hz"],
+    ["n_out", meta.n_out ? meta.n_out.toLocaleString() : "—", "点"],
+  ];
+  $("#qualityGrid").innerHTML = qitems.map(([k, v, u]) =>
+    `<div class="qitem"><div class="k">${esc(k)}</div><div class="v">${esc(v)}${u ? `<small> ${u}</small>` : ""}</div></div>`).join("");
+
+  $("#inputTable").innerHTML = tableHTML([
+    ["source", inp.source], ["filename", inp.filename || "—"], ["scenario", inp.scenario || "—"],
+    ["fs", fmt(inp.fs, 2) + " Hz"], ["n", inp.n.toLocaleString()],
+    ["duration", fmt(inp.duration_s, 2) + " s"], ["has_acc", String(inp.has_acc)],
+    ["has_gyro", String(inp.has_gyro)], ["has_reference", String(inp.has_reference)],
+    ["preset_requested", inp.preset_requested], ["preset_effective", inp.preset_effective],
+    ["run_id", j.run_id],
+  ]);
+
+  $("#metaPre").textContent = JSON.stringify({
+    run_id: j.run_id, created: j.created, input: j.input,
+    result: { meta: r.meta, quality: r.quality, hr_median: r.hr_median, hr_bpm: r.hr_bpm, hr_t: r.hr_t },
+    reference_metrics: j.reference_metrics,
+  }, null, 2);
+
+  // 下载
+  const dls = [["npz", "全量数据", "NPZ"], ["json", "元信息", "JSON"], ["csv", "波形表", "CSV"], ["png", "三波形图", "PNG"]];
+  $("#downloads").innerHTML = dls.map(([k, label, ext]) =>
+    `<a class="dl" href="${j.downloads[k]}" data-kind="${k}">${label} <span class="ext">${ext}</span></a>`).join("");
+
+  // curl
+  const base = location.origin;
+  const curl = inp.source === "demo"
+    ? `curl -X POST ${base}/api/denoise \\\n  -F source=demo -F scenario=${inp.scenario || "moderate"} -F preset=${$("#preset").value} -F want_hr=1`
+    : `curl -X POST ${base}/api/denoise \\\n  -F source=file -F file=@${inp.filename || "input.npz"}${inp.fs ? " -F fs=" + inp.fs : ""} -F preset=${$("#preset").value}`;
+  $("#curlBlock").textContent = curl;
+
+  renderVisibility();
+  // 图表尺寸在隐藏状态下为 0，切到可见后再 render
+  requestAnimationFrame(() => { waveChart.resize(); hrChart.resize(); });
+}
+
+function tableHTML(rows) {
+  return `<table class="table"><tbody>${rows.map(([k, v]) =>
+    `<tr><th style="width:42%">${esc(k)}</th><td>${esc(v)}</td></tr>`).join("")}</tbody></table>`;
+}
+
+function renderReference(j) {
+  const rm = j.reference_metrics;
+  if (!rm) {
+    $("#refSub").textContent = "本次输入未提供参考波形";
+    $("#refBody").innerHTML = `<p class="hint">在 npz/JSON 中加入 <span class="mono">reference</span>（或 <span class="mono">clean</span>）键，或在 CSV 增加 <span class="mono">reference</span> 列，即可计算 PRD / Pearson / RMSE / SNR。</p>`;
+    return;
+  }
+  const raw = rm.raw || {}, clean = rm.clean || {};
+  const gain = (raw.prd != null && clean.prd != null) ? raw.prd - clean.prd : null;
+  const gainTxt = gain == null ? "—" : (gain >= 0 ? "改善 −" + fmt(gain, 2) : "变差 +" + fmt(-gain, 2));
+  $("#refSub").textContent = "PRD 越低越好；箭头为原波形 → 滤净波形";
+  $("#refBody").innerHTML = `
+    <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:10px">
+      <span class="badge ${gain != null && gain >= 0 ? "" : "red"}">PRD ${fmt(raw.prd, 2)} → ${fmt(clean.prd, 2)}</span>
+      <span class="hint">${gainTxt}</span>
+    </div>
+    <table class="table">
+      <thead><tr><th>指标</th><th class="num">原波形</th><th class="num">滤净</th></tr></thead>
+      <tbody>
+        <tr><td>PRD (%)</td><td class="num">${fmt(raw.prd, 2)}</td><td class="num">${fmt(clean.prd, 2)}</td></tr>
+        <tr><td>Pearson</td><td class="num">${fmt(raw.pearson, 4)}</td><td class="num">${fmt(clean.pearson, 4)}</td></tr>
+        <tr><td>RMSE</td><td class="num">${fmt(raw.rmse, 4)}</td><td class="num">${fmt(clean.rmse, 4)}</td></tr>
+        <tr><td>SNR (dB)</td><td class="num">${fmt(raw.snr_db, 2)}</td><td class="num">${fmt(clean.snr_db, 2)}</td></tr>
+      </tbody>
+    </table>
+    <p class="hint" style="margin-top:8px">参考样本 ${(clean.n || 0).toLocaleString()} 点，已对齐到 100 Hz。${j.input && j.input.source === "demo" ? "演示为合成信号，PRD 不代表真实性能。" : ""}</p>`;
+}
+
+function renderHR(j) {
+  const r = j.result;
+  const hr = r.hr_bpm || [];
+  const times = r.hr_t || [];
+  if (!hr.length) {
+    $("#hrBadge").textContent = "无心率";
+    hrChart.setData({ t: [0, 1], hr_bpm: [null, null] });
+    $("#hrStats").innerHTML = `<p class="hint">信号过短（窗口 &lt; 3）或已关闭心率估计（want_hr=0）。</p>`;
+    return;
+  }
+  const valid = hr.filter(v => v != null && Number.isFinite(v));
+  const med = r.hr_median;
+  $("#hrBadge").textContent = med == null ? "中位 —" : "中位 " + fmt(med, 1) + " bpm";
+  hrChart.setSeries([{ key: "hr_bpm", label: "逐窗心率", color: "#f5a524", width: 2 }]);
+  hrChart.opts.hline = med;
+  hrChart.setData({ t: times, hr_bpm: hr });
+  const stats = [
+    ["窗口数", valid.length + " / " + hr.length],
+    ["中位", med == null ? "—" : fmt(med, 1) + " bpm"],
+    ["最小", valid.length ? fmt(Math.min(...valid), 1) + " bpm" : "—"],
+    ["最大", valid.length ? fmt(Math.max(...valid), 1) + " bpm" : "—"],
+    ["标准差", valid.length > 1 ? fmt(std(valid), 2) + " bpm" : "—"],
+  ];
+  $("#hrStats").innerHTML = tableHTML(stats);
+}
+
+function std(arr) {
+  const m = arr.reduce((a, b) => a + b, 0) / arr.length;
+  return Math.sqrt(arr.reduce((a, b) => a + (b - m) ** 2, 0) / arr.length);
+}
+
+/* ------------------------------------------------------------------ */
+/* 标签页 / 历史 / 复制                                                */
+/* ------------------------------------------------------------------ */
+function renderVisibility() {
+  const has = !!state.payload;
+  const help = state.tab === "help";
+  $("#helpPanel").hidden = !help;
+  $("#emptyState").hidden = has || help;
+  $("#resultArea").hidden = !has || help;
+  if (has) {
+    $("#tab-wave").hidden = state.tab !== "wave";
+    $("#tab-hr").hidden = state.tab !== "hr";
+    $("#tab-meta").hidden = state.tab !== "meta";
+  }
+  if (state.tab !== "help" && !has) {
+    $("#tab-wave").hidden = true; $("#tab-hr").hidden = true; $("#tab-meta").hidden = true;
+  }
+}
+
+function addHistory(j) {
+  const arr = JSON.parse(localStorage.getItem("ppg_history_v1") || "[]");
+  const item = {
+    id: j.run_id,
+    created: j.created,
+    hr: j.result.hr_median,
+    mode: j.result.meta.mode,
+    preset: j.input.preset_effective,
+    source: j.input.filename || j.input.scenario || j.input.source,
+  };
+  const next = [item, ...arr.filter(x => x.id !== item.id)].slice(0, 8);
+  localStorage.setItem("ppg_history_v1", JSON.stringify(next));
+  renderHistory();
+}
+
+function renderHistory() {
+  const arr = JSON.parse(localStorage.getItem("ppg_history_v1") || "[]");
+  if (!arr.length) {
+    $("#historyList").innerHTML = `<div class="empty-history">暂无记录。处理一次后会出现在这里。</div>`;
+    return;
+  }
+  $("#historyList").innerHTML = arr.map(x => `
+    <button class="history-item" data-run-id="${esc(x.id)}">
+      <span><span class="meta">${esc((x.created || "").slice(11))} · ${esc(String(x.source || "").slice(0, 18))}</span><br>
+        <span class="meta">${esc(x.preset || "")} · ${esc(x.mode || "")}</span></span>
+      <span class="hr">${x.hr == null ? "—" : fmt(x.hr, 1)}<span class="meta"> bpm</span></span>
+    </button>`).join("");
+}
+
+async function loadRun(runId) {
+  hideAlert();
+  setLoading(true, "正在读取记录…", "从服务端缓存加载 " + runId);
+  try {
+    const j = await api("/api/run/" + runId);
+    state.tab = "wave";
+    $$("#tabs .tab").forEach(b => b.classList.toggle("active", b.dataset.tab === "wave"));
+    renderResult(j);
+    showAlert("已加载记录 " + runId, "success", 3000);
+  } catch (e) {
+    showAlert("读取失败：" + (e.message || e), "error");
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function copyText(text, okMsg) {
+  try {
+    await navigator.clipboard.writeText(text);
+    showAlert(okMsg, "success", 2500);
+  } catch (e) {
+    const ta = document.createElement("textarea");
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); showAlert(okMsg, "success", 2500); }
+    catch (err) { showAlert("复制失败，请手动选择文本", "error", 4000); }
+    ta.remove();
+  }
+}
+</script>
+</body>
+</html>
