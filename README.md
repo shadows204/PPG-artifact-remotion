@@ -171,7 +171,7 @@ OMP_NUM_THREADS=2 python webapp/server.py --port 8000     # → http://127.0.0.1
 | `webapp/` | 网页工作台 v2 源码（Flask 后端 + 单文件前端 + 说明书） |
 | `webapp_v1/` | 原始版 v1 源码（对照 / 构建 v1 exe） |
 | `webapp/packaging/` | PyInstaller 配置（单文件 onefile + 无控制台）+ Windows/Linux 构建脚本 |
-| `PPG-Workbench-v1.exe` / `-v2.exe` | 单文件免安装版（双击即用、无 Python、演示数据内置）；发 `v*` tag 自动建 Release |
+| `PPG-Workbench-v1.exe` / `-v2.exe` | 单文件免安装版（双击即用、无 Python、演示数据内置）；在 **`app` 分支**上发 `v*` tag 自动建 Release |
 | `.github/workflows/` | push → Artifacts（v1/v2）；tag → 自动 Release（含 SHA256SUMS） |
 
 > 算法侧只依赖 `scripts/modules/ppg_api.py`（见 §3）；该接口文件**保留在本分支**，供算法/脚本直接调用。
