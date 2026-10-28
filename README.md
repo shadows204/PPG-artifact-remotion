@@ -1,203 +1,109 @@
-# PPG 运动伪影去除 · Web 工作台（软件源码分支 `app`）
+# PPG运动伪影去除 · 软件工作台（app分支）
 
-> **分支定位：本分支只放"可运行的软件"**——网页工作台、v1/v2 两个版本、单文件 exe 打包配置与构建工作流。
-> 算法细节、实验报告、训练脚本与数据集说明在 **`main` 分支**；开放许可数据集子集在 **`datasets` 分支**。
+这个分支放可运行的软件：本地网页工作台，以及打包成单文件exe的两个版本。算法、训练脚本和实验报告在`main`分支，开放数据子集在`datasets`分支，这里只保留跑软件需要的那部分代码。
 
----
+## 两个版本
 
-## 1. 两个版本
+`webapp/`是v2，默认版本。内置演示数据按真实PPG形态和物理幅度IMU合成，演示时显示“链路自检”而不是PRD，静息场景会触发旁路。
 
-| 版本 | 源码目录 | 界面/演示特点 | exe 产物 |
-|---|---|---|---|
-| **v2（推荐）** | `webapp/` | 演示数据为**真实 PPG 形态 + 物理幅度 IMU**；演示态显示「链路自检」而非 PRD；静息场景演示旁路门控 | `PPG-Workbench-v2.exe` |
-| **v1（原始版）** | `webapp_v1/` | 初版行为：合成正弦演示、演示态显示 PRD（用于对照） | `PPG-Workbench-v1.exe` |
+`webapp_v1/`是原始版，演示数据是纯正弦，演示时显示PRD。它只用来对照，交付建议用v2。两版调用的是同一套模型和接口，差别只在演示数据与演示态展示。
 
-> 算法与指标完全一致（都调用同一套 `scripts/modules/ppg_api.py` + 模型）；差异只在**演示数据生成**与**演示态指标展示**。
+演示数据与真实数据的行为不一样：演示数据的PRD没有物理意义，所以v2在演示态换成链路自检（长度、有限值、心率、伪影占比、是否旁路）；上传真实文件后会自动恢复PRD、Pearson和SNR的显示。
 
----
-
-## 2. 目录结构
+## 目录
 
 ```
 app/
-├── README.md                        # 本文件
-├── webapp/                          # ★ v2 软件源码
-│   ├── server.py                    #   Flask 后端（静态页 + 推理 API + 下载 + 退出接口）
-│   ├── static/index.html            #   单文件前端（HTML/CSS/JS，无 CDN）
-│   ├── 使用说明书.md                 #   功能/接口/故障排查说明
-│   ├── start.sh                     #   源码启动脚本
-│   └── packaging/                   #   ★ 打包配置
-│       ├── ppg_workbench_onefile.spec   # onefile + 无控制台（VARIANT=v1|v2）
-│       ├── ppg_workbench.spec           # （可选）onedir 模式
-│       ├── build_windows.bat            # Windows 一键构建 v1+v2
-│       ├── build_linux.sh               # Linux/macOS 构建（用于验证冻结逻辑）
-│       ├── gen_test_npz.py              # 冒烟测试用合成输入
-│       └── README.md                    # 打包说明与常见问题
-├── webapp_v1/                       # v1 原始版源码（含其 使用说明书.md）
-├── scripts/
-│   ├── modules/ppg_api.py           # 软件接口 PPGDenoiser（三波形 + 心率）
-│   ├── modules/residual.py crm.py models.py   # 网络结构
-│   ├── pipeline/pipeline.py         # ppg_api 依赖：RLS/PSD/Viterbi 等实现
-│   ├── _common/paths.py             # 路径解析
-│   └── tools/run_denoise.py         # 命令行版接口（demo/npz/csv 自检）
-├── models/ppg_denoise_v1/           # 权重（manifest.json 含 sha256）
-│   ├── lite/    5 残差 + 3 CRM（15 MB，PRD 46.37，推荐）
-│   ├── full/    41 残差 + 3 CRM（108 MB，PRD 46.57）
-│   └── no_imu/  无 IMU 退化路径（3 个 1 通道模型）
-├── .github/workflows/               # 构建（Artifacts）+ tag 发布（Release）
-├── requirements.txt                 # numpy scipy torch matplotlib flask (+wfdb/PyEMD 可选)
-├── run_demo.sh                      # 一键：装依赖 → 命令行接口 demo
-├── figures/pipeline_framework.png   # 框架图（来自 main 分支）
-└── outputs/                         # 运行产物（分支内为空）
+├── webapp/                    # v2源码：server.py、static/index.html、使用说明书.md、start.sh
+│   └── packaging/             # PyInstaller配置与构建脚本
+├── webapp_v1/                 # v1源码
+├── scripts/                   # 软件依赖：ppg_api、网络结构、pipeline、run_denoise
+├── models/ppg_denoise_v1/     # lite / full / no_imu三套权重
+├── .github/workflows/         # 构建与发布工作流
+├── requirements.txt
+└── run_demo.sh
 ```
 
----
+## 模型预设
 
-## 3. 源码方式启动（最快）
+`lite`是5个残差模型加3个频域模型，15MB，PRD46.37，软件默认用它；`full`是41加3个成员，108MB，PRD46.57，用来复现报告里的最终数字；`no_imu`是3个单通道模型，输入没有IMU时自动切过去。权重的sha256写在`manifest.json`里。
+
+## 源码启动
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-# 方式 A：脚本
-OMP_NUM_THREADS=2 bash webapp/start.sh           # → http://127.0.0.1:8000
-
-# 方式 B：直接跑（指定解释器，不必 activate）
-OMP_NUM_THREADS=2 python webapp/server.py --port 8000
+OMP_NUM_THREADS=2 bash webapp/start.sh
+# 或者：OMP_NUM_THREADS=2 python webapp/server.py --port 8000
 ```
 
-- 打包版会自动打开浏览器；源码版默认也自动打开（`--no-browser` 可关）。
-- 首次请求才加载模型（lite 8 个权重，约 1–3 s），之后 30 s 信号约 **0.1–0.3 s**。
-- **务必设 `OMP_NUM_THREADS=2`**（或直接跑 exe，它已内置线程限制）：128 核机器上 torch 默认开 128 线程会把推理拖慢到 ~5 s。
+启动后会自动打开浏览器，也可以手动访问http://127.0.0.1:8000。`OMP_NUM_THREADS=2`别漏，torch默认按核数开线程，128核机器上30s信号会从0.2s拖到5s左右。模型在首次请求时才加载，lite一共8个权重，大约1到3秒。
 
----
+## 单文件exe
 
-## 4. 单文件 exe（双击即用，无需 Python）
+产物有两个，都是约294MB的单文件，无控制台窗口：`PPG-Workbench-v2.exe`（默认）和`PPG-Workbench-v1.exe`（对照）。双击后自动打开浏览器，端口被占会顺延；首次启动要把运行时解压到临时目录，20到60秒属正常；退出点网页右上角的按钮，日志写在同一目录的`workbench.log`里。
 
-### 4.1 产物
+构建方式有三种。最省事的是推送到`app`分支或手动触发Actions，跑完在Artifacts里拿两个zip；推`v*`tag会自动建Release并附上两个zip和校验和，tag要打在`app`分支上。Windows本机双击`webapp/packaging/build_windows.bat`即可；Linux和macOS用`bash webapp/packaging/build_linux.sh "v1 v2"`，主要用来验证打包逻辑。PyInstaller不能交叉编译，Windows的exe必须在Windows或Actions上构建。
 
-| 文件 | 大小 | 说明 |
-|---|---|---|
-| `PPG-Workbench-v1.exe` | ≈ 294 MB | 原始版；**单文件**、无控制台窗口 |
-| `PPG-Workbench-v2.exe` | ≈ 294 MB | 增强版；同上 |
+## 网页功能
 
-双击 → 自动打开浏览器（默认 `http://127.0.0.1:8000`，端口被占自动顺延）。
-**退出**：网页右上角 **⏻**（无控制台时没有 Ctrl+C）；日志在 exe 同目录 `workbench.log`。
-**拷贝**：只拷这一个 exe 即可；首次启动解压约 20–60 s 属正常。
+输入支持内置演示数据（静息、中等、强运动三档）和外部文件（npz、csv、json）。输出是三波形（原波形、伪影估计、滤净波形，另有一条默认隐藏的物理先验）、逐窗心率曲线和质量指标（伪影占比、是否旁路、SNR、运行模式、耗时）。交互有滚轮缩放、拖拽平移、双击复位、悬停读数、图例开关和明暗主题，最近的处理记录存在浏览器本地。结果可导出成npz、json、csv和png。
 
-### 4.2 构建（三选一）
+## 接口
 
-**A. GitHub Actions（推荐，不需要 Windows 机器）**
-
-- 本分支已带两个工作流：
-  - `.github/workflows/build-windows-exe.yml`：push 到 `main`/`app` 或手动 Run → 产出两个 Artifacts（`PPG-Workbench-v1-windows.zip` / `-v2-windows.zip`）；
-  - `.github/workflows/release-windows.yml`：**推 `v*` tag** → 构建 v1/v2 → 做冒烟测试 → **自动创建 Release** 并附两个 zip + `SHA256SUMS.txt`。
-- 发布一条（**tag 必须打在 `app` 分支上**，release 工作流随本分支提供）：
-  `git checkout app && git tag v2.0.0 && git push origin v2.0.0`
-
-**B. Windows 本机**
-
-双击 `webapp\packaging\build_windows.bat`（本机只需装 Python 用于构建；成品不需要）→ `dist\PPG-Workbench-v1.exe`、`-v2.exe`。
-
-**C. Linux/macOS（验证冻结逻辑）**
+- `GET /api/health`：服务状态、版本、torch版本、已加载模型
+- `GET /api/info`：预设、限制、演示场景
+- `GET /api/demo?scenario=rest|moderate|strong`：预览演示数据，不推理
+- `POST /api/denoise`：主接口，multipart或json
+- `POST /api/selfcheck`：用合成样例跑一遍端到端自检
+- `GET /api/runs`、`GET /api/run/<id>`：列出或读取缓存结果
+- `GET /api/download/<id>/{npz,json,csv,png}`：下载产物
+- `POST /api/shutdown`：退出服务，无控制台版靠它关程序
 
 ```bash
-bash webapp/packaging/build_linux.sh "v1 v2"
+curl -X POST http://127.0.0.1:8000/api/denoise -F source=demo -F scenario=moderate -F preset=lite
+curl -X POST http://127.0.0.1:8000/api/denoise -F source=file -F file=@my.npz -F preset=lite
 ```
 
-> 跨平台限制：PyInstaller 不能交叉编译，Windows 的 exe 必须在 Windows（或 Actions 的 windows-latest）上构建。
+返回里主要看`result.ppg_clean`、`result.hr_median`、`result.quality`和`series`；输入带参考波形时多一个`reference_metrics`，演示数据多一个`link_check`。
 
----
+## 输入格式
 
-## 5. 网页功能
-
-- **输入**：内置演示数据（三档）/ 上传 `.npz` `.csv` `.json`；
-- **输出**：三波形 ① 原波形 ② 伪影 M̂ ③ 滤净波形（+ 物理先验）；**心率曲线**（8 s 窗 / 2 s 步进，Viterbi 全局路径）；质量指标（伪影占比/旁路/SNR/模式/耗时）；
-- **交互**：滚轮缩放、拖拽平移、双击复位、悬停读数、图例开关、明暗主题、历史记录（localStorage）；
-- **导出**：NPZ / JSON / CSV / PNG；
-- **接口**：见 §6。
-
----
-
-## 6. REST API
-
-| 方法 | 路径 | 说明 |
-|---|---|---|
-| GET | `/api/health` | 服务/版本/torch 版本/已加载模型 |
-| GET | `/api/info` | manifest、预设、限制、演示场景、报告数字 |
-| GET | `/api/demo?scenario=rest\|moderate\|strong` | 预览演示数据（不推理） |
-| POST | `/api/denoise` | 主接口（multipart 或 JSON） |
-| POST | `/api/selfcheck` | 合成样例端到端自检（返回链路自检项） |
-| GET | `/api/run/<run_id>` `/api/runs` | 读取/列出服务端缓存结果（≤12 条） |
-| GET | `/api/download/<run_id>/{npz,json,csv,png}` | 下载产物 |
-| POST | `/api/shutdown` | 退出服务（无控制台版的退出方式） |
-
-请求示例：
-
-```bash
-curl -X POST http://127.0.0.1:8000/api/denoise \
-  -F source=demo -F scenario=moderate -F preset=lite -F want_hr=1
-
-curl -X POST http://127.0.0.1:8000/api/denoise \
-  -F source=file -F file=@my.npz -F preset=lite -F want_hr=1
-```
-
-返回关键字段：`result.ppg_raw/artifact/ppg_prior/ppg_clean`、`result.hr_bpm/hr_t/hr_median`、`result.quality`、`result.meta`、`series`（降采样绘图数据）、`reference_metrics`（有参考时）、`link_check`（演示态链路自检）。
-
----
-
-## 7. 输入格式
-
-**NPZ（推荐）**
+npz是推荐格式：
 
 ```python
 np.savez_compressed("my.npz",
-    ppg=ppg,          # 必需，(N,) 或 (n_lead, N)，任意单位
+    ppg=ppg,          # 必需，(N,)或(n_lead, N)，任意单位
     acc=acc,          # 可选，(3,N)/(N,3)/(N,)
-    gyro=gyro,        # 可选，有则用 "ACC_x + Gyro_y" 异质两路参考（实测更优）
-    reference=clean,  # 可选，干净 PPG 真值（也可用键 clean）→ 显示 PRD/Pearson/SNR
-    fs=100.0,         # 可选标量（缺省时须在界面填写）
+    gyro=gyro,        # 可选，有则用ACC_x+Gyro_y异质两路参考
+    reference=clean,  # 可选，干净PPG真值，用来显示PRD/Pearson/SNR
+    fs=100.0,         # 可选，缺省时界面左侧要填
 )
 ```
 
-**CSV**：列名 `ppg[, acc_x/y/z, gyro_x/y/z, reference]`；**CSV 不含采样率，必须在界面左侧填 fs**。
+csv用`ppg, acc_x/y/z, gyro_x/y/z, reference`列名，但csv不带采样率，界面左侧要手动填。json就是对应的字典。
 
-**JSON**：`{"ppg": [...], "acc": [[...]], "gyro": [[...]], "reference": [...], "fs": 100}`。
+约束不多：文件不超过64MB、采样点不超过200万、任意采样率（内部统一重采样到100Hz）、任意长度（超过30s滑窗重叠相加，短于1s报错），NaN会自动插值。
 
-约束：上传 ≤ 64 MB、输入 ≤ 2,000,000 点；任意长度（>30 s 滑窗重叠相加）、任意采样率（内部重采样到 100 Hz）；NaN 自动插值。
+## 打包做了哪些处理
 
----
+onefile把模型、网页和`pipeline.py`一起打进exe，运行时解压到`sys._MEIPASS`；`console=False`关掉控制台，启动时把`stdout`和`stderr`重定向到日志文件，否则打印会出错；没有Ctrl+C，所以加了`/api/shutdown`和页面上的退出按钮；启动时限制torch线程数；端口从8000起顺延到8019；构建时装CPU版torch，避免把CUDA打进包。更细的说明在`webapp/packaging/README.md`。
 
-## 8. 打包实现要点（为什么能单文件 + 无黑框）
+## 常见问题
 
-| 点 | 做法 |
-|---|---|
-| 单文件 | PyInstaller `onefile`；模型/网页/`pipeline.py` 作为 data 打进 exe，运行时解压到 `sys._MEIPASS` |
-| 无控制台 | spec `console=False`；启动即把 `stdout/stderr` 重定向到 exe 同目录 `workbench.log` |
-| 退出 | 无 Ctrl+C → `POST /api/shutdown` + 网页右上角 **⏻** 按钮 |
-| 自动开浏览器 | 打包版默认打开默认浏览器；`--no-browser` 可关 |
-| 性能 | 启动时 `torch.set_num_threads(min(4, cpu//16))`：128 核上 4.9 s → 0.1 s |
-| 端口占用 | 8000 起自动顺延到 8019 |
-| 体积 | 构建用 **CPU 版 torch**（`--index-url .../whl/cpu`），避免把 CUDA 打进包 |
+- 双击没反应或等很久：首次启动在解压运行时，20到60秒正常，看同目录的`workbench.log`。
+- Windows提示“未知发布者”：程序没签名，点“更多信息→仍要运行”即可。
+- 杀毒软件报毒：PyInstaller单文件常见误报，加白名单，或者改用onedir版本。
+- 想关掉程序：点页面右上角按钮，或者任务管理器结束进程。
+- 端口被占：会自动往后找，也可以用`--port`指定。
+- 只有三波形没有PRD：输入里没有`reference`，属正常。
+- 提示“信号干净，已透传”：伪影占比低于阈值，旁路生效了。
 
-详细说明与常见问题见 [`webapp/packaging/README.md`](webapp/packaging/README.md)。
+## 与其它分支的关系
 
----
+`main`放算法、训练评估脚本、实验报告和权重源，本分支的`models/`与`scripts/`关键文件从那里同步；`datasets`放可再分发的公开数据子集，需要的话`git fetch origin datasets && git checkout origin/datasets -- datasets/`。
 
-## 9. 与其他分支的关系
+## 说明
 
-| 分支 | 内容 | 本分支如何依赖 |
-|---|---|---|
-| **`main`** | 算法主流程、训练/评估脚本、实验报告、数据集说明、**模型权重源** | 本分支的 `models/`、`scripts/` 关键文件即从 main 同步 |
-| **`datasets`** | 开放许可数据集子集（TROIKA/WRIST/BIDMC） | 可选：`git fetch origin datasets && git checkout origin/datasets -- datasets/` |
-| `app`（本分支） | 软件源码 + 打包配置 + 构建/发布工作流 | — |
-
-> 算法贡献、消融、baseline、适用范围等请阅读 main 分支的 **`实验最终报告.md`**。
-
----
-
-## 10. 许可与致谢
-
-- 代码：供本赛题评审与学术复现使用。
-- 数据集：版权归各数据集/赛方所有，不随本分支分发。
-- 上游参考实现：`uEDA-Net`、`Kernel-Adaptive-Filtering`（仅 main 分支实验中作对照）。
+代码供赛题评审和学术复现使用，数据集不随本分支分发。上游参考实现`uEDA-Net`和`Kernel-Adaptive-Filtering`只在`main`分支的实验里作对照。
